@@ -32,8 +32,8 @@ export async function setEmployeeStatus(id: string, status: EmployeeStatus): Pro
   );
 }
 
-export function deactivateEmployee(id: string): Promise<Employee> {
-  return setEmployeeStatus(id, 'inactive');
+export async function deleteEmployee(id: string): Promise<void> {
+  await requestJson(`/employees/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
 export function reactivateEmployee(id: string): Promise<Employee> {

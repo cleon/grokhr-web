@@ -1,17 +1,17 @@
 import { ActionIcon, Avatar, Badge, Group, Menu, Stack, Table, Text } from '@mantine/core';
-import { IconDots, IconPencil, IconUserCheck, IconUserOff } from '@tabler/icons-react';
+import { IconDots, IconPencil, IconTrash, IconUserCheck } from '@tabler/icons-react';
 import type { Employee } from '../types/employee.ts';
 import { avatarColor, formatHireDate, fullName, initials } from '../lib/directory.ts';
 
 export function EmployeeTable({
   employees,
   onEdit,
-  onDeactivate,
+  onRemove,
   onReactivate,
 }: {
   employees: Employee[];
   onEdit: (employee: Employee) => void;
-  onDeactivate: (employee: Employee) => void;
+  onRemove: (employee: Employee) => void;
   onReactivate: (employee: Employee) => void;
 }) {
   return (
@@ -59,22 +59,21 @@ export function EmployeeTable({
                           <Menu.Item leftSection={<IconPencil size={16} />} onClick={() => onEdit(employee)}>
                             Edit
                           </Menu.Item>
-                          {employee.status === 'active' ? (
-                            <Menu.Item
-                              color="red"
-                              leftSection={<IconUserOff size={16} />}
-                              onClick={() => onDeactivate(employee)}
-                            >
-                              Deactivate
-                            </Menu.Item>
-                          ) : (
+                          {employee.status === 'inactive' ? (
                             <Menu.Item
                               leftSection={<IconUserCheck size={16} />}
                               onClick={() => onReactivate(employee)}
                             >
                               Reactivate
                             </Menu.Item>
-                          )}
+                          ) : null}
+                          <Menu.Item
+                            color="red"
+                            leftSection={<IconTrash size={16} />}
+                            onClick={() => onRemove(employee)}
+                          >
+                            Remove
+                          </Menu.Item>
                         </Menu.Dropdown>
                       </Menu>
                     </Group>

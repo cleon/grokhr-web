@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createEmployee, deactivateEmployee, listEmployees, reactivateEmployee, updateEmployee } from './employees.ts';
+import { createEmployee, deleteEmployee, listEmployees, reactivateEmployee, updateEmployee } from './employees.ts';
 import { ApiError } from './http.ts';
 
 const sample = {
@@ -88,21 +88,39 @@ describe('employee API', () => {
     expect(updated.title).toBe('Principal Engineer');
   });
 
-  it('deactivates and reactivates with a status patch', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(jsonResponse({ ...sample, status: 'inactive' }))
-      .mockResolvedValueOnce(jsonResponse(sample));
+  it('deletes an employee with DELETE', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const inactive = await deactivateEmployee('emp/1');
+    await deleteEmployee('emp/1');
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/employees/emp%2F1');
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: 'DELETE' });
+    expect(fetchMock.mock.calls[0]?.[1].body).toBeUndefined();
+  });
+
+  it('surfaces a delete conflict', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ detail: 'Employee is referenced by an open review' }, 409)),
+    );
+
+    await expect(deleteEmployee('emp_1')).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 409,
+      message: 'Employee is referenced by an open review',
+    } satisfies Partial<ApiError>);
+  });
+
+  it('reactivates with a status patch', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(sample));
+    vi.stubGlobal('fetch', fetchMock);
+
     const active = await reactivateEmployee('emp/1');
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/employees/emp%2F1');
-    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1].body))).toEqual({ status: 'inactive' });
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1].body))).toEqual({ status: 'active' });
     expect(fetchMock.mock.calls[0]?.[1].method).toBe('PATCH');
-    expect(inactive.status).toBe('inactive');
-    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1].body))).toEqual({ status: 'active' });
     expect(active.status).toBe('active');
   });
 

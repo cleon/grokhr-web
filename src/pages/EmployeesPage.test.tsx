@@ -105,29 +105,90 @@ describe('employee directory', () => {
     });
   });
 
-  it('deactivates an employee after confirmation', async () => {
+  it('removes an employee after confirmation and reloads the directory', async () => {
     const user = userEvent.setup();
+    let loaded = false;
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      if (init?.method === 'PATCH') return json({ ...avery, status: 'inactive' });
-      return json([avery]);
+      if (init?.method === 'DELETE') return new Response(null, { status: 204 });
+      if (loaded) return json([riley]);
+      loaded = true;
+      return json([avery, riley]);
     });
     vi.stubGlobal('fetch', fetchMock);
 
     render(<App />);
     expect(await screen.findByText('Avery Chen')).toBeInTheDocument();
 
+    await user.click(screen.getByRole('button', { name: 'Actions for Riley Moss' }));
+    expect(await screen.findByRole('menuitem', { name: 'Remove' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Reactivate' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+
     await user.click(screen.getByRole('button', { name: 'Actions for Avery Chen' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Deactivate' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Remove' }));
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText(/stays in the directory as inactive/)).toBeInTheDocument();
-    await user.click(within(dialog).getByRole('button', { name: 'Deactivate' }));
+    expect(within(dialog).getByText(/permanently removed from the directory/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Delete employee' }));
 
     await waitFor(() => {
-      expect(within(screen.getByRole('table', { name: 'Employees' })).getByText('Inactive')).toBeInTheDocument();
+      expect(screen.queryByText('Avery Chen')).not.toBeInTheDocument();
     });
-    const patch = fetchMock.mock.calls.find((call) => call[1]?.method === 'PATCH');
-    expect(patch?.[0]).toBe('http://localhost:8000/employees/emp_1');
-    expect(JSON.parse(String(patch?.[1]?.body))).toEqual({ status: 'inactive' });
+    expect(screen.getByText('Riley Moss')).toBeInTheDocument();
+    expect(screen.getByText('Employee removed')).toBeInTheDocument();
+    const remove = fetchMock.mock.calls.find((call) => call[1]?.method === 'DELETE');
+    expect(remove?.[0]).toBe('http://localhost:8000/employees/emp_1');
+    expect(remove?.[1]?.body).toBeUndefined();
+    expect(fetchMock.mock.calls.filter((call) => !call[1]?.method).length).toBeGreaterThan(1);
+  });
+
+  it('notifies when delete returns 404 and refreshes the directory', async () => {
+    const user = userEvent.setup();
+    let loaded = false;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === 'DELETE') return json({ detail: 'Employee not found' }, 404);
+        if (loaded) return json([]);
+        loaded = true;
+        return json([avery]);
+      }),
+    );
+
+    render(<App />);
+    expect(await screen.findByText('Avery Chen')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Actions for Avery Chen' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Remove' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete employee' }));
+
+    expect(await screen.findByText('Employee not found')).toBeInTheDocument();
+    expect(screen.getByText('This employee is no longer in the directory.')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText('Avery Chen')).not.toBeInTheDocument();
+    });
+  });
+
+  it('notifies when delete returns 409 and keeps the employee', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === 'DELETE') return json({ detail: 'Employee is referenced by an open review' }, 409);
+        return json([avery]);
+      }),
+    );
+
+    render(<App />);
+    expect(await screen.findByText('Avery Chen')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Actions for Avery Chen' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Remove' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete employee' }));
+
+    expect(await screen.findByText('Could not delete employee')).toBeInTheDocument();
+    expect(screen.getByText('Employee is referenced by an open review')).toBeInTheDocument();
+    expect(within(screen.getByRole('table', { name: 'Employees' })).getByText('Avery Chen')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });
 

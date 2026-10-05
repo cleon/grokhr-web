@@ -1,6 +1,6 @@
 # grokhr-web
 
-GrokHR people directory for the multi-repo demo. List employees, add them, edit them, and deactivate them. Fictional example data only — no real PII, no authentication.
+GrokHR people directory for the multi-repo demo. List employees, add them, edit them, and remove them. Fictional example data only — no real PII, no authentication.
 
 The API must be running before the directory can load.
 
@@ -15,7 +15,7 @@ Open http://localhost:5173. The app calls FastAPI at `VITE_API_URL` (default `ht
 VITE_API_URL=http://localhost:8000
 ```
 
-Restart `npm run dev` after changing it. The API has to allow the Vite origin (`http://localhost:5173`) on `GET`, `POST`, `PATCH`, and `OPTIONS`, including `Content-Type`.
+Restart `npm run dev` after changing it. The API has to allow the Vite origin (`http://localhost:5173`) on `GET`, `POST`, `PATCH`, `DELETE`, and `OPTIONS`, including `Content-Type`.
 
 ## API contract
 
@@ -28,10 +28,11 @@ JSON uses camelCase. Reads also accept `first_name`, `last_name`, and `hire_date
 | `POST` | `/employees` | `EmployeeCreate` | `Employee` |
 | `PATCH` | `/employees/{id}` | `EmployeeUpdate` | `Employee` |
 | `PATCH` | `/employees/{id}` | `{ "status": "inactive" }` or `"active"` | `Employee` |
+| `DELETE` | `/employees/{id}` | | empty (`204`) |
 
 `Employee` fields: `id`, `firstName`, `lastName`, `email`, `department`, `title`, `hireDate` (`YYYY-MM-DD`), `status` (`active` or `inactive`).
 
-Deactivate is `PATCH` with `{ "status": "inactive" }`. The record stays in the directory. Reactivate sends `{ "status": "active" }`.
+Remove calls `DELETE /employees/{id}` and drops the person from the directory. `404` means the record is already gone; `409` means the server rejected the delete. Reactivate still sends `PATCH` with `{ "status": "active" }`.
 
 Errors follow FastAPI: `{ "detail": "..." }` or `{ "detail": [{ "loc": ["body", "email"], "msg": "..." }] }`.
 

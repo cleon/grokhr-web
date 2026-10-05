@@ -17,7 +17,7 @@ import { IconAlertCircle, IconPlus, IconRefresh, IconSearch } from '@tabler/icon
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { listEmployees, reactivateEmployee } from '../api/employees.ts';
 import { errorMessage } from '../api/http.ts';
-import { DeactivateModal } from '../components/DeactivateModal.tsx';
+import { DeleteEmployeeModal } from '../components/DeleteEmployeeModal.tsx';
 import { EmployeeDrawer } from '../components/EmployeeDrawer.tsx';
 import { EmployeeTable } from '../components/EmployeeTable.tsx';
 import { departmentFilterOptions, filterEmployees, fullName, sortEmployees } from '../lib/directory.ts';
@@ -36,7 +36,7 @@ export function EmployeesPage() {
   const [department, setDepartment] = useState<string | null>(null);
   const [status, setStatus] = useState<'all' | Employee['status']>('all');
   const [editor, setEditor] = useState<EditorState>({ opened: false });
-  const [pendingDeactivate, setPendingDeactivate] = useState<Employee | null>(null);
+  const [pendingRemove, setPendingRemove] = useState<Employee | null>(null);
 
   const applyDirectory = useCallback((rows: Employee[]) => {
     setEmployees(sortEmployees(rows));
@@ -113,7 +113,7 @@ export function EmployeesPage() {
         <div>
           <Title order={2}>Employees</Title>
           <Text c="dimmed" size="sm" mt={4}>
-            Create, update, or deactivate example staff records.
+            Create, update, or remove example staff records.
           </Text>
         </div>
         <Group gap="xs">
@@ -194,7 +194,7 @@ export function EmployeesPage() {
             <EmployeeTable
               employees={visible}
               onEdit={(employee) => setEditor({ opened: true, mode: 'edit', employee })}
-              onDeactivate={setPendingDeactivate}
+              onRemove={setPendingRemove}
               onReactivate={(employee) => void reactivate(employee)}
             />
           ) : null}
@@ -221,12 +221,12 @@ export function EmployeesPage() {
         />
       ) : null}
 
-      <DeactivateModal
-        employee={pendingDeactivate}
-        onClose={() => setPendingDeactivate(null)}
-        onDeactivated={(saved) => {
-          upsert(saved);
-          setPendingDeactivate(null);
+      <DeleteEmployeeModal
+        employee={pendingRemove}
+        onClose={() => setPendingRemove(null)}
+        onRemoved={() => {
+          setPendingRemove(null);
+          void load();
         }}
       />
     </Stack>
