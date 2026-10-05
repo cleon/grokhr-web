@@ -57,6 +57,19 @@ describe('employee API', () => {
     ]);
   });
 
+  it('requests active or inactive employees with a status query', async () => {
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(jsonResponse([])));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await listEmployees('active');
+    await listEmployees('inactive');
+    await listEmployees();
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/employees?status=active');
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('http://localhost:8000/employees?status=inactive');
+    expect(fetchMock.mock.calls[2]?.[0]).toBe('http://localhost:8000/employees');
+  });
+
   it('creates and updates with camelCase JSON', async () => {
     const fetchMock = vi
       .fn()

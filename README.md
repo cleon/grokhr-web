@@ -23,7 +23,7 @@ JSON uses camelCase. Reads also accept `first_name`, `last_name`, and `hire_date
 
 | Method | Path | Body | Response |
 | --- | --- | --- | --- |
-| `GET` | `/employees` | | `Employee[]` (or `{ employees \| items \| data \| results: Employee[] }`) |
+| `GET` | `/employees` | optional `?status=active` or `?status=inactive` | `Employee[]` (or `{ employees \| items \| data \| results: Employee[] }`) |
 | `GET` | `/employees/{id}` | | `Employee` |
 | `POST` | `/employees` | `EmployeeCreate` | `Employee` |
 | `PATCH` | `/employees/{id}` | `EmployeeUpdate` | `Employee` |
@@ -35,7 +35,7 @@ Deactivate is `PATCH` with `{ "status": "inactive" }`. The record stays in the d
 
 Errors follow FastAPI: `{ "detail": "..." }` or `{ "detail": [{ "loc": ["body", "email"], "msg": "..." }] }`.
 
-Search, department, and status filters run in the browser on the list response.
+Search and department filters run in the browser on the loaded list. The status control reloads that list: Active and Inactive send `?status=`, and All calls `GET /employees` with no status filter.
 
 ## Shared types
 

@@ -21,7 +21,7 @@ import { DeactivateModal } from '../components/DeactivateModal.tsx';
 import { EmployeeDrawer } from '../components/EmployeeDrawer.tsx';
 import { EmployeeTable } from '../components/EmployeeTable.tsx';
 import { departmentFilterOptions, filterEmployees, fullName, sortEmployees } from '../lib/directory.ts';
-import type { Employee } from '../types/employee.ts';
+import type { Employee, EmployeeStatus } from '../types/employee.ts';
 
 type EditorState =
   | { opened: false }
@@ -34,7 +34,7 @@ export function EmployeesPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [department, setDepartment] = useState<string | null>(null);
-  const [status, setStatus] = useState<'all' | Employee['status']>('all');
+  const [status, setStatus] = useState<'all' | EmployeeStatus>('active');
   const [editor, setEditor] = useState<EditorState>({ opened: false });
   const [pendingDeactivate, setPendingDeactivate] = useState<Employee | null>(null);
 
@@ -44,18 +44,20 @@ export function EmployeesPage() {
     setLoadError(null);
   }, []);
 
+  const listStatus = status === 'all' ? undefined : status;
+
   const load = useCallback(async () => {
     try {
-      applyDirectory(await listEmployees());
+      applyDirectory(await listEmployees(listStatus));
     } catch (error) {
       setLoadError(errorMessage(error));
       setPhase('error');
     }
-  }, [applyDirectory]);
+  }, [applyDirectory, listStatus]);
 
   useEffect(() => {
     let cancelled = false;
-    listEmployees()
+    listEmployees(listStatus)
       .then((rows) => {
         if (!cancelled) applyDirectory(rows);
       })
@@ -67,7 +69,7 @@ export function EmployeesPage() {
     return () => {
       cancelled = true;
     };
-  }, [applyDirectory]);
+  }, [applyDirectory, listStatus]);
 
   const visible = useMemo(
     () => filterEmployees(employees, { query, department, status }),
@@ -134,6 +136,19 @@ export function EmployeesPage() {
 
       <Paper className="hr-surface" radius="md" p="md">
         <Stack gap="md">
+          <SegmentedControl
+            value={status}
+            onChange={(value) => {
+              setStatus(value as 'all' | EmployeeStatus);
+              setPhase('loading');
+            }}
+            data={[
+              { label: 'Active', value: 'active' },
+              { label: 'Inactive', value: 'inactive' },
+              { label: 'All', value: 'all' },
+            ]}
+            aria-label="Filter by employment status"
+          />
           <Group align="flex-end" justify="space-between" wrap="wrap" gap="sm">
             <TextInput
               label="Search"
@@ -153,16 +168,6 @@ export function EmployeesPage() {
               onChange={setDepartment}
               aria-label="Filter by department"
               style={{ flex: '1 1 220px' }}
-            />
-            <SegmentedControl
-              value={status}
-              onChange={(value) => setStatus(value as 'all' | Employee['status'])}
-              data={[
-                { label: 'All', value: 'all' },
-                { label: 'Active', value: 'active' },
-                { label: 'Inactive', value: 'inactive' },
-              ]}
-              aria-label="Filter by status"
             />
           </Group>
 

@@ -30,16 +30,51 @@ afterEach(() => {
 });
 
 describe('employee directory', () => {
-  it('lists employees returned by the API', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json([avery, riley])));
+  it('lists active employees by default', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('?status=active')) return json([avery]);
+      return json([avery, riley]);
+    });
+    vi.stubGlobal('fetch', fetchMock);
 
     render(<App />);
 
     const table = await screen.findByRole('table', { name: 'Employees' });
     expect(within(table).getByText('Avery Chen')).toBeInTheDocument();
-    expect(within(table).getByText('riley.moss@example.com')).toBeInTheDocument();
-    expect(within(table).getByText('Inactive')).toBeInTheDocument();
-    expect(screen.getByText('Showing 2 of 2')).toBeInTheDocument();
+    expect(within(table).queryByText('Riley Moss')).not.toBeInTheDocument();
+    expect(screen.getByText('Showing 1 of 1')).toBeInTheDocument();
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('http://localhost:8000/employees?status=active');
+  });
+
+  it('reloads the directory when employment status changes', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('?status=inactive')) return json([riley]);
+      if (url.endsWith('?status=active')) return json([avery]);
+      return json([avery, riley]);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByText('Avery Chen')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: 'Inactive' }));
+    await waitFor(() => {
+      expect(within(screen.getByRole('table', { name: 'Employees' })).getByText('Riley Moss')).toBeInTheDocument();
+    });
+    expect(within(screen.getByRole('table', { name: 'Employees' })).queryByText('Avery Chen')).not.toBeInTheDocument();
+    expect(String(fetchMock.mock.calls.at(-1)?.[0])).toBe('http://localhost:8000/employees?status=inactive');
+
+    await user.click(screen.getByRole('radio', { name: 'All' }));
+    await waitFor(() => {
+      const table = screen.getByRole('table', { name: 'Employees' });
+      expect(within(table).getByText('Avery Chen')).toBeInTheDocument();
+      expect(within(table).getByText('Riley Moss')).toBeInTheDocument();
+    });
+    expect(String(fetchMock.mock.calls.at(-1)?.[0])).toBe('http://localhost:8000/employees');
   });
 
   it('shows an error when the API is unreachable', async () => {
@@ -123,8 +158,10 @@ describe('employee directory', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Deactivate' }));
 
     await waitFor(() => {
-      expect(within(screen.getByRole('table', { name: 'Employees' })).getByText('Inactive')).toBeInTheDocument();
+      expect(screen.getByText('Employee deactivated')).toBeInTheDocument();
     });
+    expect(screen.queryByRole('table', { name: 'Employees' })).not.toBeInTheDocument();
+    expect(screen.getByText('No matching employees')).toBeInTheDocument();
     const patch = fetchMock.mock.calls.find((call) => call[1]?.method === 'PATCH');
     expect(patch?.[0]).toBe('http://localhost:8000/employees/emp_1');
     expect(JSON.parse(String(patch?.[1]?.body))).toEqual({ status: 'inactive' });

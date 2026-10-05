@@ -1,8 +1,9 @@
 import { parseEmployee, parseEmployeeList, requestJson } from './http.ts';
 import type { Employee, EmployeeCreate, EmployeeStatus, EmployeeUpdate } from '../types/employee.ts';
 
-export async function listEmployees(): Promise<Employee[]> {
-  return parseEmployeeList(await requestJson('/employees'));
+export async function listEmployees(status?: EmployeeStatus): Promise<Employee[]> {
+  const path = status ? `/employees?status=${encodeURIComponent(status)}` : '/employees';
+  return parseEmployeeList(await requestJson(path));
 }
 
 export async function createEmployee(input: EmployeeCreate): Promise<Employee> {
