@@ -119,11 +119,6 @@ describe('employee directory', () => {
     render(<App />);
     expect(await screen.findByText('Avery Chen')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Actions for Riley Moss' }));
-    expect(await screen.findByRole('menuitem', { name: 'Remove' })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Reactivate' })).toBeInTheDocument();
-    await user.keyboard('{Escape}');
-
     await user.click(screen.getByRole('button', { name: 'Actions for Avery Chen' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Remove' }));
     const dialog = await screen.findByRole('dialog');
@@ -139,6 +134,18 @@ describe('employee directory', () => {
     expect(remove?.[0]).toBe('http://localhost:8000/employees/emp_1');
     expect(remove?.[1]?.body).toBeUndefined();
     expect(fetchMock.mock.calls.filter((call) => !call[1]?.method).length).toBeGreaterThan(1);
+  });
+
+  it('offers remove on an inactive employee alongside reactivate', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json([riley])));
+
+    render(<App />);
+    expect(await screen.findByText('Riley Moss')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Actions for Riley Moss' }));
+    const items = await screen.findAllByRole('menuitem');
+    expect(items.map((item) => item.textContent)).toEqual(['Edit', 'Reactivate', 'Remove']);
   });
 
   it('notifies when delete returns 404 and refreshes the directory', async () => {
