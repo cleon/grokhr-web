@@ -108,7 +108,7 @@ export function EmployeesPage() {
   }
 
   return (
-    <Stack gap="lg" maw={1120}>
+    <Stack gap="lg" maw={1120} w="100%">
       <Group justify="space-between" align="flex-end">
         <div>
           <Title order={2}>Employees</Title>
@@ -134,26 +134,26 @@ export function EmployeesPage() {
 
       <Paper className="hr-surface" radius="md" p="md">
         <Stack gap="md">
-          <Group align="flex-end" justify="space-between" wrap="wrap">
-            <Group align="flex-end" grow style={{ flex: 1 }}>
-              <TextInput
-                label="Search"
-                placeholder="Name, email, or title"
-                leftSection={<IconSearch size={16} />}
-                value={query}
-                onChange={(event) => setQuery(event.currentTarget.value)}
-                aria-label="Search employees"
-              />
-              <Select
-                label="Department"
-                placeholder="All departments"
-                clearable
-                data={departmentFilterOptions(employees)}
-                value={department}
-                onChange={setDepartment}
-                aria-label="Filter by department"
-              />
-            </Group>
+          <Group align="flex-end" justify="space-between" wrap="wrap" gap="sm">
+            <TextInput
+              label="Search"
+              placeholder="Name, email, or title"
+              leftSection={<IconSearch size={16} />}
+              value={query}
+              onChange={(event) => setQuery(event.currentTarget.value)}
+              aria-label="Search employees"
+              style={{ flex: '1 1 220px' }}
+            />
+            <Select
+              label="Department"
+              placeholder="All departments"
+              clearable
+              data={departmentFilterOptions(employees)}
+              value={department}
+              onChange={setDepartment}
+              aria-label="Filter by department"
+              style={{ flex: '1 1 220px' }}
+            />
             <SegmentedControl
               value={status}
               onChange={(value) => setStatus(value as 'all' | Employee['status'])}
