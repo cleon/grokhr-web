@@ -29,6 +29,9 @@ describe('directory helpers', () => {
   it('filters by query, department, and status', () => {
     const rows = [avery, jordan];
     expect(filterEmployees(rows, { query: 'avery.chen', department: null, status: 'all' })).toEqual([avery]);
+    expect(filterEmployees([{ ...avery, preferredName: 'Ave' }, jordan], { query: 'ave', department: null, status: 'all' })).toEqual([
+      { ...avery, preferredName: 'Ave' },
+    ]);
     expect(filterEmployees(rows, { query: '', department: 'People', status: 'all' })).toEqual([jordan]);
     expect(filterEmployees(rows, { query: '', department: null, status: 'active' })).toEqual([avery]);
   });

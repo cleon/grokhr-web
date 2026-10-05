@@ -36,6 +36,7 @@ export function filterEmployees(employees: Employee[], filters: DirectoryFilters
     const haystack = [
       employee.firstName,
       employee.lastName,
+      employee.preferredName ?? '',
       employee.email,
       employee.title,
       employee.department,

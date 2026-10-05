@@ -137,7 +137,7 @@ export function EmployeesPage() {
           <Group align="flex-end" justify="space-between" wrap="wrap" gap="sm">
             <TextInput
               label="Search"
-              placeholder="Name, email, or title"
+              placeholder="Name, preferred name, email, or title"
               leftSection={<IconSearch size={16} />}
               value={query}
               onChange={(event) => setQuery(event.currentTarget.value)}

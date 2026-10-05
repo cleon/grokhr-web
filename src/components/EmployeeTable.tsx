@@ -20,6 +20,7 @@ export function EmployeeTable({
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Employee</Table.Th>
+            <Table.Th visibleFrom="sm">Preferred name</Table.Th>
             <Table.Th visibleFrom="sm">Department</Table.Th>
             <Table.Th visibleFrom="md">Title</Table.Th>
             <Table.Th visibleFrom="md">Hired</Table.Th>
@@ -40,6 +41,11 @@ export function EmployeeTable({
                         <Text fw={500} size="sm" truncate="end">
                           {name}
                         </Text>
+                        {employee.preferredName ? (
+                          <Text size="xs" c="dimmed" truncate="end" hiddenFrom="sm">
+                            Goes by {employee.preferredName}
+                          </Text>
+                        ) : null}
                         <Text size="xs" c="dimmed" truncate="end" visibleFrom="sm">
                           {employee.email}
                         </Text>
@@ -79,6 +85,11 @@ export function EmployeeTable({
                       </Menu>
                     </Group>
                   </Group>
+                </Table.Td>
+                <Table.Td visibleFrom="sm">
+                  <Text size="sm" c={employee.preferredName ? undefined : 'dimmed'}>
+                    {employee.preferredName || '—'}
+                  </Text>
                 </Table.Td>
                 <Table.Td visibleFrom="sm">
                   <Text size="sm">{employee.department}</Text>

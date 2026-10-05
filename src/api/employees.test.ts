@@ -26,6 +26,7 @@ describe('employee API', () => {
             id: 'emp_2',
             first_name: 'Jordan',
             last_name: 'Hale',
+            preferred_name: 'Jo',
             email: 'jordan.hale@example.com',
             department: 'People',
             title: 'HR Partner',
@@ -48,6 +49,7 @@ describe('employee API', () => {
         id: 'emp_2',
         firstName: 'Jordan',
         lastName: 'Hale',
+        preferredName: 'Jo',
         email: 'jordan.hale@example.com',
         department: 'People',
         title: 'HR Partner',
@@ -67,6 +69,7 @@ describe('employee API', () => {
     const created = await createEmployee({
       firstName: 'Avery',
       lastName: 'Chen',
+      preferredName: 'Ave',
       email: 'avery.chen@example.com',
       department: 'Engineering',
       title: 'Staff Engineer',
@@ -78,7 +81,11 @@ describe('employee API', () => {
     const post = fetchMock.mock.calls[0];
     expect(post?.[0]).toBe('http://localhost:8000/employees');
     expect(post?.[1]).toMatchObject({ method: 'POST' });
-    expect(JSON.parse(String(post?.[1].body))).toMatchObject({ firstName: 'Avery', hireDate: '2022-04-18' });
+    expect(JSON.parse(String(post?.[1].body))).toMatchObject({
+      firstName: 'Avery',
+      preferredName: 'Ave',
+      hireDate: '2022-04-18',
+    });
     expect(created.id).toBe('emp_new');
 
     const put = fetchMock.mock.calls[1];

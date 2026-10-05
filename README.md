@@ -19,7 +19,7 @@ Restart `npm run dev` after changing it. The API has to allow the Vite origin (`
 
 ## API contract
 
-JSON uses camelCase. Reads also accept `first_name`, `last_name`, and `hire_date` so a snake_case FastAPI response still renders. Writes send camelCase only.
+JSON uses camelCase. Reads also accept `first_name`, `last_name`, `preferred_name`, and `hire_date` so a snake_case FastAPI response still renders. Writes send camelCase only.
 
 | Method | Path | Body | Response |
 | --- | --- | --- | --- |
@@ -29,7 +29,7 @@ JSON uses camelCase. Reads also accept `first_name`, `last_name`, and `hire_date
 | `PUT` | `/employees/{id}` | `EmployeeUpdate` | `Employee` |
 | `PATCH` | `/employees/{id}` | `{ "status": "inactive" }` or `"active"` | `Employee` |
 
-`Employee` fields: `id`, `firstName`, `lastName`, `email`, `department`, `title`, `hireDate` (`YYYY-MM-DD`), `status` (`active` or `inactive`).
+`Employee` fields: `id`, `firstName`, `lastName`, `preferredName` (optional string), `email`, `department`, `title`, `hireDate` (`YYYY-MM-DD`), `status` (`active` or `inactive`). The directory form sends `preferredName` when it is filled in, and the table shows it.
 
 Deactivate is `PATCH` with `{ "status": "inactive" }`. The record stays in the directory. Reactivate sends `{ "status": "active" }`.
 

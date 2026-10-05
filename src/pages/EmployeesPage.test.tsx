@@ -7,6 +7,7 @@ const avery = {
   id: 'emp_1',
   firstName: 'Avery',
   lastName: 'Chen',
+  preferredName: 'Ave',
   email: 'avery.chen@example.com',
   department: 'Engineering',
   title: 'Staff Engineer',
@@ -37,6 +38,8 @@ describe('employee directory', () => {
 
     const table = await screen.findByRole('table', { name: 'Employees' });
     expect(within(table).getByText('Avery Chen')).toBeInTheDocument();
+    expect(within(table).getByText('Ave')).toBeInTheDocument();
+    expect(within(table).getByText('—')).toBeInTheDocument();
     expect(within(table).getByText('riley.moss@example.com')).toBeInTheDocument();
     expect(within(table).getByText('Inactive')).toBeInTheDocument();
     expect(screen.getByText('Showing 2 of 2')).toBeInTheDocument();
@@ -56,6 +59,7 @@ describe('employee directory', () => {
       id: 'emp_3',
       firstName: 'Samir',
       lastName: 'Okonkwo',
+      preferredName: 'Sam',
       email: 'samir.okonkwo@example.com',
       department: 'Finance',
       title: 'Controller',
@@ -75,6 +79,7 @@ describe('employee directory', () => {
     const dialog = await screen.findByRole('dialog');
     await user.type(within(dialog).getByLabelText(/First name/), 'Samir');
     await user.type(within(dialog).getByLabelText(/Last name/), 'Okonkwo');
+    await user.type(within(dialog).getByLabelText(/Preferred name/), 'Sam');
     await user.type(within(dialog).getByLabelText(/Email/), 'samir.okonkwo@example.com');
     const department = within(dialog).getByLabelText(/Department/);
     await user.click(department);
@@ -97,6 +102,7 @@ describe('employee directory', () => {
     expect(JSON.parse(String(post?.[1]?.body))).toMatchObject({
       firstName: 'Samir',
       lastName: 'Okonkwo',
+      preferredName: 'Sam',
       email: 'samir.okonkwo@example.com',
       department: 'Finance',
       title: 'Controller',

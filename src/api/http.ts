@@ -59,10 +59,12 @@ export function parseEmployee(value: unknown): Employee {
   }
 
   const status = parseStatus(readField(record, 'status'), String(id));
+  const preferredName = optionalStringField(record, 'preferredName');
   return {
     id: String(id),
     firstName: stringField(record, 'firstName'),
     lastName: stringField(record, 'lastName'),
+    ...(preferredName ? { preferredName } : {}),
     email: stringField(record, 'email'),
     department: stringField(record, 'department'),
     title: stringField(record, 'title'),
@@ -125,6 +127,7 @@ function parseStatus(value: unknown, id: string): EmployeeStatus {
 const SNAKE_FIELDS: Record<string, string> = {
   firstName: 'first_name',
   lastName: 'last_name',
+  preferredName: 'preferred_name',
   hireDate: 'hire_date',
 };
 
@@ -140,6 +143,11 @@ function stringField(record: Record<string, unknown>, key: string): string {
   if (typeof value === 'string') return value;
   if (typeof value === 'number') return String(value);
   return '';
+}
+
+function optionalStringField(record: Record<string, unknown>, key: string): string | undefined {
+  const value = stringField(record, key).trim();
+  return value || undefined;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
