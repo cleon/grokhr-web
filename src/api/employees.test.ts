@@ -77,7 +77,7 @@ describe('employee API', () => {
   it('rejects a bare employee array', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse([sample])));
 
-    await expect(listEmployees()).rejects.toThrow(/missing items/);
+    await expect(listEmployees()).rejects.toThrow(/not a page/);
   });
 
   it('rejects a page missing total', async () => {

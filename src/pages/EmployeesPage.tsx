@@ -44,13 +44,18 @@ export function EmployeesPage() {
   const requestSeq = useRef(0);
 
   function reload() {
+    setPhase('loading');
     setReloadKey((current) => current + 1);
+  }
+
+  function goToPage(next: number) {
+    setPhase('loading');
+    setPage(next);
   }
 
   useEffect(() => {
     const seq = ++requestSeq.current;
     let cancelled = false;
-    setPhase('loading');
     listEmployees({ page, pageSize: DEFAULT_EMPLOYEE_PAGE_SIZE })
       .then((result) => {
         if (cancelled || seq !== requestSeq.current) return;
@@ -215,7 +220,7 @@ export function EmployeesPage() {
                   variant="default"
                   size="xs"
                   disabled={page <= 1}
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  onClick={() => goToPage(Math.max(1, page - 1))}
                   aria-label="Previous page"
                 >
                   Previous
@@ -227,7 +232,7 @@ export function EmployeesPage() {
                   variant="default"
                   size="xs"
                   disabled={page >= pageCount}
-                  onClick={() => setPage((current) => current + 1)}
+                  onClick={() => goToPage(page + 1)}
                   aria-label="Next page"
                 >
                   Next
