@@ -1,0 +1,23 @@
+:root[data-mantine-color-scheme='light'] {
+  --mantine-color-body: #f7f7f4;
+  --mantine-color-text: #26251e;
+  --hr-surface: #f2f1ed;
+  --hr-border: #e1e0db;
+}
+
+:root[data-mantine-color-scheme='dark'] {
+  --mantine-color-body: #14120b;
+  --mantine-color-text: #edecec;
+  --hr-surface: #1b1913;
+  --hr-border: #2b2923;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+.hr-surface {
+  background: var(--hr-surface);
+  border: 1px solid var(--hr-border);
+}
