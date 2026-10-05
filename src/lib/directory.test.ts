@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Employee } from '../types/employee.ts';
 import { filterEmployees, formatHireDate, sortEmployees } from './directory.ts';
-import { validateEmployeeForm, emptyEmployeeForm } from './employeeForm.ts';
+import { employeeToForm, formToWrite, validateEmployeeForm, emptyEmployeeForm } from './employeeForm.ts';
 
 const avery: Employee = {
   id: '1',
@@ -37,6 +37,23 @@ describe('directory helpers', () => {
     expect(sortEmployees([avery, jordan]).map((employee) => employee.id)).toEqual(['1', '2']);
     expect(formatHireDate('2022-04-18')).toBe('Apr 18, 2022');
     expect(formatHireDate('2022-04-18T00:00:00Z')).toBe('Apr 18, 2022');
+  });
+
+  it('sends preferred name only when it is set', () => {
+    const base = {
+      ...emptyEmployeeForm(),
+      firstName: 'Avery',
+      lastName: 'Chen',
+      email: 'avery.chen@example.com',
+      department: 'Engineering',
+      title: 'Staff Engineer',
+      hireDate: '2022-04-18',
+    };
+    expect(formToWrite(base)).not.toHaveProperty('preferredName');
+    expect(formToWrite({ ...base, preferredName: '   ' })).not.toHaveProperty('preferredName');
+    expect(formToWrite({ ...base, preferredName: 'Ace' })).toMatchObject({ preferredName: 'Ace' });
+    expect(employeeToForm({ ...avery, preferredName: 'Ace' }).preferredName).toBe('Ace');
+    expect(employeeToForm(avery).preferredName).toBe('');
   });
 
   it('requires a real calendar date and a valid email', () => {

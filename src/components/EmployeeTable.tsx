@@ -20,6 +20,7 @@ export function EmployeeTable({
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Employee</Table.Th>
+            <Table.Th visibleFrom="sm">Preferred name</Table.Th>
             <Table.Th visibleFrom="sm">Department</Table.Th>
             <Table.Th visibleFrom="md">Title</Table.Th>
             <Table.Th visibleFrom="md">Hired</Table.Th>
@@ -79,6 +80,11 @@ export function EmployeeTable({
                       </Menu>
                     </Group>
                   </Group>
+                </Table.Td>
+                <Table.Td visibleFrom="sm">
+                  <Text size="sm" c={employee.preferredName ? undefined : 'dimmed'}>
+                    {employee.preferredName?.trim() || '—'}
+                  </Text>
                 </Table.Td>
                 <Table.Td visibleFrom="sm">
                   <Text size="sm">{employee.department}</Text>

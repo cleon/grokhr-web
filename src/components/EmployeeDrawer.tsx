@@ -74,6 +74,11 @@ export function EmployeeDrawer({
             <TextInput label="First name" required autoFocus {...form.getInputProps('firstName')} />
             <TextInput label="Last name" required {...form.getInputProps('lastName')} />
           </SimpleGrid>
+          <TextInput
+            label="Preferred name"
+            description="How they want to be addressed. Legal first and last name stay on the profile."
+            {...form.getInputProps('preferredName')}
+          />
           <TextInput label="Email" required type="email" {...form.getInputProps('email')} />
           <Select
             label="Department"

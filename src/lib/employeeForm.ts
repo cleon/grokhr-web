@@ -3,6 +3,7 @@ import type { Employee, EmployeeCreate, EmployeeStatus, EmployeeUpdate } from '.
 export interface EmployeeFormValues {
   firstName: string;
   lastName: string;
+  preferredName: string;
   email: string;
   department: string | null;
   title: string;
@@ -16,6 +17,7 @@ export function emptyEmployeeForm(): EmployeeFormValues {
   return {
     firstName: '',
     lastName: '',
+    preferredName: '',
     email: '',
     department: null,
     title: '',
@@ -28,6 +30,7 @@ export function employeeToForm(employee: Employee): EmployeeFormValues {
   return {
     firstName: employee.firstName,
     lastName: employee.lastName,
+    preferredName: employee.preferredName ?? '',
     email: employee.email,
     department: employee.department,
     title: employee.title,
@@ -50,6 +53,7 @@ export function validateEmployeeForm(values: EmployeeFormValues): Partial<Record
 }
 
 export function formToWrite(values: EmployeeFormValues): EmployeeCreate & EmployeeUpdate {
+  const preferredName = values.preferredName.trim();
   return {
     firstName: values.firstName.trim(),
     lastName: values.lastName.trim(),
@@ -58,6 +62,7 @@ export function formToWrite(values: EmployeeFormValues): EmployeeCreate & Employ
     title: values.title.trim(),
     hireDate: values.hireDate,
     status: values.status,
+    ...(preferredName ? { preferredName } : {}),
   };
 }
 

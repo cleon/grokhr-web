@@ -11,6 +11,8 @@ export interface Employee {
   id: string;
   firstName: string;
   lastName: string;
+  /** Name they go by. Legal name remains `firstName` and `lastName`. */
+  preferredName?: string;
   email: string;
   department: string;
   title: string;
@@ -22,6 +24,7 @@ export interface Employee {
 export interface EmployeeCreate {
   firstName: string;
   lastName: string;
+  preferredName?: string;
   email: string;
   department: string;
   title: string;
@@ -32,6 +35,7 @@ export interface EmployeeCreate {
 export interface EmployeeUpdate {
   firstName?: string;
   lastName?: string;
+  preferredName?: string;
   email?: string;
   department?: string;
   title?: string;

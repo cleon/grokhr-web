@@ -1,9 +1,12 @@
+import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from '../App.tsx';
+import { EmployeeTable } from '../components/EmployeeTable.tsx';
+import type { Employee } from '../types/employee.ts';
 
-const avery = {
+const avery: Employee = {
   id: 'emp_1',
   firstName: 'Avery',
   lastName: 'Chen',
@@ -14,7 +17,7 @@ const avery = {
   status: 'active',
 };
 
-const riley = {
+const riley: Employee = {
   id: 'emp_2',
   firstName: 'Riley',
   lastName: 'Moss',
@@ -37,6 +40,7 @@ describe('employee directory', () => {
 
     const table = await screen.findByRole('table', { name: 'Employees' });
     expect(within(table).getByText('Avery Chen')).toBeInTheDocument();
+    expect(within(table).getByRole('columnheader', { name: 'Preferred name' })).toBeInTheDocument();
     expect(within(table).getByText('riley.moss@example.com')).toBeInTheDocument();
     expect(within(table).getByText('Inactive')).toBeInTheDocument();
     expect(screen.getByText('Showing 2 of 2')).toBeInTheDocument();
@@ -75,6 +79,7 @@ describe('employee directory', () => {
     const dialog = await screen.findByRole('dialog');
     await user.type(within(dialog).getByLabelText(/First name/), 'Samir');
     await user.type(within(dialog).getByLabelText(/Last name/), 'Okonkwo');
+    await user.type(within(dialog).getByLabelText(/Preferred name/), 'Sam');
     await user.type(within(dialog).getByLabelText(/Email/), 'samir.okonkwo@example.com');
     const department = within(dialog).getByLabelText(/Department/);
     await user.click(department);
@@ -97,6 +102,7 @@ describe('employee directory', () => {
     expect(JSON.parse(String(post?.[1]?.body))).toMatchObject({
       firstName: 'Samir',
       lastName: 'Okonkwo',
+      preferredName: 'Sam',
       email: 'samir.okonkwo@example.com',
       department: 'Finance',
       title: 'Controller',
@@ -128,6 +134,24 @@ describe('employee directory', () => {
     const patch = fetchMock.mock.calls.find((call) => call[1]?.method === 'PATCH');
     expect(patch?.[0]).toBe('http://localhost:8000/employees/emp_1');
     expect(JSON.parse(String(patch?.[1]?.body))).toEqual({ status: 'inactive' });
+  });
+
+  it('shows a preferred name in its own column', () => {
+    render(
+      <MantineProvider>
+        <EmployeeTable
+          employees={[{ ...avery, preferredName: 'Ace' }]}
+          onEdit={() => undefined}
+          onDeactivate={() => undefined}
+          onReactivate={() => undefined}
+        />
+      </MantineProvider>,
+    );
+
+    const table = screen.getByRole('table', { name: 'Employees' });
+    expect(within(table).getByRole('columnheader', { name: 'Preferred name' })).toBeInTheDocument();
+    expect(within(table).getByText('Ace')).toBeInTheDocument();
+    expect(within(table).getByText('Avery Chen')).toBeInTheDocument();
   });
 });
 
