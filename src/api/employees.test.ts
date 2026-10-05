@@ -81,9 +81,10 @@ describe('employee API', () => {
     expect(JSON.parse(String(post?.[1].body))).toMatchObject({ firstName: 'Avery', hireDate: '2022-04-18' });
     expect(created.id).toBe('emp_new');
 
-    const put = fetchMock.mock.calls[1];
-    expect(put?.[0]).toBe('http://localhost:8000/employees/emp_new');
-    expect(put?.[1]).toMatchObject({ method: 'PUT' });
+    const patch = fetchMock.mock.calls[1];
+    expect(patch?.[0]).toBe('http://localhost:8000/employees/emp_new');
+    expect(patch?.[1]).toMatchObject({ method: 'PATCH' });
+    expect(JSON.parse(String(patch?.[1].body))).toEqual({ title: 'Principal Engineer' });
     expect(updated.title).toBe('Principal Engineer');
   });
 

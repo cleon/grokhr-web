@@ -17,7 +17,7 @@ export async function createEmployee(input: EmployeeCreate): Promise<Employee> {
 export async function updateEmployee(id: string, input: EmployeeUpdate): Promise<Employee> {
   return parseEmployee(
     await requestJson(`/employees/${encodeURIComponent(id)}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(input),
     }),
   );
