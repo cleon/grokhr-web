@@ -1,4 +1,4 @@
-import type { Employee, EmployeeStatus } from '../types/employee.ts';
+import type { Employee, EmployeePage, EmployeeStatus } from '../types/employee.ts';
 
 const DEFAULT_API_URL = 'http://localhost:8000';
 
@@ -71,8 +71,19 @@ export function parseEmployee(value: unknown): Employee {
   };
 }
 
-export function parseEmployeeList(value: unknown): Employee[] {
-  return unwrapList(value).map((row) => parseEmployee(row));
+export function parseEmployeePage(value: unknown): EmployeePage {
+  const record = asRecord(value);
+  if (!record) throw new ApiError('Employee list response was not a page.', 0);
+
+  const items = record.items;
+  if (!Array.isArray(items)) throw new ApiError('Employee list response is missing items.', 0);
+
+  return {
+    items: items.map((row) => parseEmployee(row)),
+    total: requiredNumber(record, 'total'),
+    page: requiredNumber(record, 'page'),
+    pageSize: requiredNumber(record, 'pageSize'),
+  };
 }
 
 export function formatErrorDetail(body: unknown): string | null {
@@ -104,16 +115,12 @@ function parseBody(text: string): unknown {
   }
 }
 
-function unwrapList(value: unknown): unknown[] {
-  if (Array.isArray(value)) return value;
-  const record = asRecord(value);
-  if (record) {
-    for (const key of ['employees', 'items', 'data', 'results']) {
-      const candidate = record[key];
-      if (Array.isArray(candidate)) return candidate;
-    }
+function requiredNumber(record: Record<string, unknown>, key: string): number {
+  const value = record[key];
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new ApiError(`Employee list response is missing ${key}.`, 0);
   }
-  throw new ApiError('Employee list response was not a list.', 0);
+  return value;
 }
 
 function parseStatus(value: unknown, id: string): EmployeeStatus {

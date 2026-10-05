@@ -38,3 +38,10 @@ export interface EmployeeUpdate {
   hireDate?: string;
   status?: EmployeeStatus;
 }
+
+export interface EmployeePage {
+  items: Employee[];
+  total: number;
+  page: number;
+  pageSize: number;
+}

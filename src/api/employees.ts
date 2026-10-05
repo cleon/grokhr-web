@@ -1,8 +1,20 @@
-import { parseEmployee, parseEmployeeList, requestJson } from './http.ts';
-import type { Employee, EmployeeCreate, EmployeeStatus, EmployeeUpdate } from '../types/employee.ts';
+import { parseEmployee, parseEmployeePage, requestJson } from './http.ts';
+import type { Employee, EmployeeCreate, EmployeePage, EmployeeStatus, EmployeeUpdate } from '../types/employee.ts';
 
-export async function listEmployees(): Promise<Employee[]> {
-  return parseEmployeeList(await requestJson('/employees'));
+export const DEFAULT_EMPLOYEE_PAGE_SIZE = 25;
+
+export async function listEmployees(query?: {
+  page?: number;
+  pageSize?: number;
+}): Promise<EmployeePage> {
+  const page = query?.page && query.page > 0 ? Math.floor(query.page) : 1;
+  const pageSize =
+    query?.pageSize && query.pageSize > 0 ? Math.floor(query.pageSize) : DEFAULT_EMPLOYEE_PAGE_SIZE;
+  const params = new URLSearchParams({
+    page: String(page),
+    pageSize: String(pageSize),
+  });
+  return parseEmployeePage(await requestJson(`/employees?${params.toString()}`));
 }
 
 export async function createEmployee(input: EmployeeCreate): Promise<Employee> {

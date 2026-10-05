@@ -23,7 +23,7 @@ JSON uses camelCase. Reads also accept `first_name`, `last_name`, and `hire_date
 
 | Method | Path | Body | Response |
 | --- | --- | --- | --- |
-| `GET` | `/employees` | | `Employee[]` (or `{ employees \| items \| data \| results: Employee[] }`) |
+| `GET` | `/employees?page=1&pageSize=25` | | `{ items: Employee[], total, page, pageSize }` |
 | `GET` | `/employees/{id}` | | `Employee` |
 | `POST` | `/employees` | `EmployeeCreate` | `Employee` |
 | `PATCH` | `/employees/{id}` | `EmployeeUpdate` | `Employee` |
@@ -35,7 +35,7 @@ Deactivate is `PATCH` with `{ "status": "inactive" }`. The record stays in the d
 
 Errors follow FastAPI: `{ "detail": "..." }` or `{ "detail": [{ "loc": ["body", "email"], "msg": "..." }] }`.
 
-Search, department, and status filters run in the browser on the list response.
+`page` is 1-based and `pageSize` defaults to 25. Search, department, and status filters run in the browser on the current page.
 
 ## Shared types
 

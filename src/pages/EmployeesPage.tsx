@@ -14,14 +14,14 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertCircle, IconPlus, IconRefresh, IconSearch } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { listEmployees, reactivateEmployee } from '../api/employees.ts';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { DEFAULT_EMPLOYEE_PAGE_SIZE, listEmployees, reactivateEmployee } from '../api/employees.ts';
 import { errorMessage } from '../api/http.ts';
 import { DeactivateModal } from '../components/DeactivateModal.tsx';
 import { EmployeeDrawer } from '../components/EmployeeDrawer.tsx';
 import { EmployeeTable } from '../components/EmployeeTable.tsx';
-import { departmentFilterOptions, filterEmployees, fullName, sortEmployees } from '../lib/directory.ts';
-import type { Employee } from '../types/employee.ts';
+import { departmentFilterOptions, filterEmployees, fullName } from '../lib/directory.ts';
+import type { Employee, EmployeePage } from '../types/employee.ts';
 
 type EditorState =
   | { opened: false }
@@ -30,6 +30,10 @@ type EditorState =
 
 export function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_EMPLOYEE_PAGE_SIZE);
+  const [reloadKey, setReloadKey] = useState(0);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -37,37 +41,41 @@ export function EmployeesPage() {
   const [status, setStatus] = useState<'all' | Employee['status']>('all');
   const [editor, setEditor] = useState<EditorState>({ opened: false });
   const [pendingDeactivate, setPendingDeactivate] = useState<Employee | null>(null);
+  const requestSeq = useRef(0);
 
-  const applyDirectory = useCallback((rows: Employee[]) => {
-    setEmployees(sortEmployees(rows));
-    setPhase('ready');
-    setLoadError(null);
-  }, []);
-
-  const load = useCallback(async () => {
-    try {
-      applyDirectory(await listEmployees());
-    } catch (error) {
-      setLoadError(errorMessage(error));
-      setPhase('error');
-    }
-  }, [applyDirectory]);
+  function reload() {
+    setReloadKey((current) => current + 1);
+  }
 
   useEffect(() => {
+    const seq = ++requestSeq.current;
     let cancelled = false;
-    listEmployees()
-      .then((rows) => {
-        if (!cancelled) applyDirectory(rows);
+    setPhase('loading');
+    listEmployees({ page, pageSize: DEFAULT_EMPLOYEE_PAGE_SIZE })
+      .then((result) => {
+        if (cancelled || seq !== requestSeq.current) return;
+        const resolved = resolveEmployeePage(result, page);
+        if (resolved.page !== page) {
+          setTotal(resolved.total);
+          setPageSize(resolved.pageSize);
+          setPage(resolved.page);
+          return;
+        }
+        setEmployees(resolved.items);
+        setTotal(resolved.total);
+        setPageSize(resolved.pageSize);
+        setPhase('ready');
+        setLoadError(null);
       })
       .catch((error: unknown) => {
-        if (cancelled) return;
+        if (cancelled || seq !== requestSeq.current) return;
         setLoadError(errorMessage(error));
         setPhase('error');
       });
     return () => {
       cancelled = true;
     };
-  }, [applyDirectory]);
+  }, [page, reloadKey]);
 
   const visible = useMemo(
     () => filterEmployees(employees, { query, department, status }),
@@ -77,27 +85,15 @@ export function EmployeesPage() {
   const activeCount = employees.filter((employee) => employee.status === 'active').length;
   const departmentCount = new Set(employees.map((employee) => employee.department).filter(Boolean)).size;
 
-  function upsert(saved: Employee) {
-    setEmployees((current) => {
-      const exists = current.some((employee) => employee.id === saved.id);
-      const next = exists
-        ? current.map((employee) => (employee.id === saved.id ? saved : employee))
-        : [...current, saved];
-      return sortEmployees(next);
-    });
-    setPhase('ready');
-    setLoadError(null);
-  }
-
   async function reactivate(employee: Employee) {
     try {
       const updated = await reactivateEmployee(employee.id);
-      upsert(updated);
       notifications.show({
         color: 'teal',
         title: 'Employee reactivated',
         message: `${fullName(updated)} is active again.`,
       });
+      reload();
     } catch (error) {
       notifications.show({
         color: 'red',
@@ -106,6 +102,16 @@ export function EmployeesPage() {
       });
     }
   }
+
+  const pageCount = pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
+  const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = total === 0 ? 0 : Math.min(page * pageSize, total);
+  const windowLabel =
+    total === 0
+      ? 'Showing 0 employees'
+      : rangeStart === rangeEnd
+        ? `Showing ${rangeStart} of ${total}`
+        : `Showing ${rangeStart}–${rangeEnd} of ${total}`;
 
   return (
     <Stack gap="lg" maw={1120} w="100%">
@@ -117,7 +123,7 @@ export function EmployeesPage() {
           </Text>
         </div>
         <Group gap="xs">
-          <Button variant="default" leftSection={<IconRefresh size={16} />} onClick={() => void load()}>
+          <Button variant="default" leftSection={<IconRefresh size={16} />} onClick={reload}>
             Refresh
           </Button>
           <Button leftSection={<IconPlus size={16} />} onClick={() => setEditor({ opened: true, mode: 'create' })}>
@@ -200,9 +206,34 @@ export function EmployeesPage() {
           ) : null}
 
           {phase === 'ready' ? (
-            <Text size="xs" c="dimmed">
-              Showing {visible.length} of {employees.length}
-            </Text>
+            <Group justify="space-between" align="center" role="navigation" aria-label="Employee pages">
+              <Text size="xs" c="dimmed">
+                {windowLabel}
+              </Text>
+              <Group gap="xs">
+                <Button
+                  variant="default"
+                  size="xs"
+                  disabled={page <= 1}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  aria-label="Previous page"
+                >
+                  Previous
+                </Button>
+                <Text size="sm">
+                  Page {page} of {pageCount}
+                </Text>
+                <Button
+                  variant="default"
+                  size="xs"
+                  disabled={page >= pageCount}
+                  onClick={() => setPage((current) => current + 1)}
+                  aria-label="Next page"
+                >
+                  Next
+                </Button>
+              </Group>
+            </Group>
           ) : null}
         </Stack>
       </Paper>
@@ -214,9 +245,9 @@ export function EmployeesPage() {
           mode={editor.mode}
           employee={editor.mode === 'edit' ? editor.employee : undefined}
           onClose={() => setEditor({ opened: false })}
-          onSaved={(saved) => {
-            upsert(saved);
+          onSaved={() => {
             setEditor({ opened: false });
+            reload();
           }}
         />
       ) : null}
@@ -224,13 +255,27 @@ export function EmployeesPage() {
       <DeactivateModal
         employee={pendingDeactivate}
         onClose={() => setPendingDeactivate(null)}
-        onDeactivated={(saved) => {
-          upsert(saved);
+        onDeactivated={() => {
           setPendingDeactivate(null);
+          reload();
         }}
       />
     </Stack>
   );
+}
+
+// The requested page can land past the end after a deactivate. Follow the last
+// page that still has rows instead of leaving the table empty.
+function resolveEmployeePage(result: EmployeePage, requestedPage: number): EmployeePage {
+  const size = result.pageSize > 0 ? result.pageSize : DEFAULT_EMPLOYEE_PAGE_SIZE;
+  const lastPage = Math.max(1, Math.ceil(Math.max(0, result.total) / size));
+  const reported = result.page >= 1 ? result.page : requestedPage;
+  return {
+    items: result.items,
+    total: result.total,
+    page: Math.min(reported, lastPage),
+    pageSize: size,
+  };
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

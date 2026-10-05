@@ -18,7 +18,7 @@ afterEach(() => {
 });
 
 describe('employee API', () => {
-  it('lists employees and accepts snake_case plus wrapped pages', async () => {
+  it('lists a page of employees and accepts snake_case fields', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse({
         items: [
@@ -33,28 +33,60 @@ describe('employee API', () => {
             status: 'ACTIVE',
           },
         ],
+        total: 40,
+        page: 2,
+        pageSize: 10,
       }),
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    const rows = await listEmployees();
+    const result = await listEmployees({ page: 2, pageSize: 10 });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:8000/employees',
+      'http://localhost:8000/employees?page=2&pageSize=10',
       expect.objectContaining({ headers: expect.objectContaining({ Accept: 'application/json' }) }),
     );
-    expect(rows).toEqual([
-      {
-        id: 'emp_2',
-        firstName: 'Jordan',
-        lastName: 'Hale',
-        email: 'jordan.hale@example.com',
-        department: 'People',
-        title: 'HR Partner',
-        hireDate: '2021-11-02',
-        status: 'active',
-      },
-    ]);
+    expect(result).toEqual({
+      items: [
+        {
+          id: 'emp_2',
+          firstName: 'Jordan',
+          lastName: 'Hale',
+          email: 'jordan.hale@example.com',
+          department: 'People',
+          title: 'HR Partner',
+          hireDate: '2021-11-02',
+          status: 'active',
+        },
+      ],
+      total: 40,
+      page: 2,
+      pageSize: 10,
+    });
+  });
+
+  it('defaults the directory request to page 1 and pageSize 25', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ items: [], total: 0, page: 1, pageSize: 25 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await listEmployees();
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/employees?page=1&pageSize=25');
+  });
+
+  it('rejects a bare employee array', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse([sample])));
+
+    await expect(listEmployees()).rejects.toThrow(/missing items/);
+  });
+
+  it('rejects a page missing total', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ items: [sample], page: 1, pageSize: 25 })),
+    );
+
+    await expect(listEmployees()).rejects.toThrow(/missing total/);
   });
 
   it('creates and updates with camelCase JSON', async () => {
