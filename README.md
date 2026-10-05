@@ -15,7 +15,7 @@ Open http://localhost:5173. The app calls FastAPI at `VITE_API_URL` (default `ht
 VITE_API_URL=http://localhost:8000
 ```
 
-Restart `npm run dev` after changing it. The API has to allow the Vite origin (`http://localhost:5173`) on `GET`, `POST`, `PUT`, `PATCH`, and `OPTIONS`, including `Content-Type`.
+Restart `npm run dev` after changing it. The API has to allow the Vite origin (`http://localhost:5173`) on `GET`, `POST`, `PATCH`, and `OPTIONS`, including `Content-Type`.
 
 ## API contract
 
@@ -26,7 +26,7 @@ JSON uses camelCase. Reads also accept `first_name`, `last_name`, and `hire_date
 | `GET` | `/employees` | | `Employee[]` (or `{ employees \| items \| data \| results: Employee[] }`) |
 | `GET` | `/employees/{id}` | | `Employee` |
 | `POST` | `/employees` | `EmployeeCreate` | `Employee` |
-| `PUT` | `/employees/{id}` | `EmployeeUpdate` | `Employee` |
+| `PATCH` | `/employees/{id}` | `EmployeeUpdate` | `Employee` |
 | `PATCH` | `/employees/{id}` | `{ "status": "inactive" }` or `"active"` | `Employee` |
 
 `Employee` fields: `id`, `firstName`, `lastName`, `email`, `department`, `title`, `hireDate` (`YYYY-MM-DD`), `status` (`active` or `inactive`).
