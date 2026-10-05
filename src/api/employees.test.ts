@@ -1,0 +1,138 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createEmployee, deactivateEmployee, listEmployees, reactivateEmployee, updateEmployee } from './employees.ts';
+import { ApiError } from './http.ts';
+
+const sample = {
+  id: 'emp_1',
+  firstName: 'Avery',
+  lastName: 'Chen',
+  email: 'avery.chen@example.com',
+  department: 'Engineering',
+  title: 'Staff Engineer',
+  hireDate: '2022-04-18',
+  status: 'active',
+};
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('employee API', () => {
+  it('lists employees and accepts snake_case plus wrapped pages', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        items: [
+          {
+            id: 'emp_2',
+            first_name: 'Jordan',
+            last_name: 'Hale',
+            email: 'jordan.hale@example.com',
+            department: 'People',
+            title: 'HR Partner',
+            hire_date: '2021-11-02T00:00:00',
+            status: 'ACTIVE',
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const rows = await listEmployees();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8000/employees',
+      expect.objectContaining({ headers: expect.objectContaining({ Accept: 'application/json' }) }),
+    );
+    expect(rows).toEqual([
+      {
+        id: 'emp_2',
+        firstName: 'Jordan',
+        lastName: 'Hale',
+        email: 'jordan.hale@example.com',
+        department: 'People',
+        title: 'HR Partner',
+        hireDate: '2021-11-02',
+        status: 'active',
+      },
+    ]);
+  });
+
+  it('creates and updates with camelCase JSON', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ ...sample, id: 'emp_new' }, 201))
+      .mockResolvedValueOnce(jsonResponse({ ...sample, id: 'emp_new', title: 'Principal Engineer' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const created = await createEmployee({
+      firstName: 'Avery',
+      lastName: 'Chen',
+      email: 'avery.chen@example.com',
+      department: 'Engineering',
+      title: 'Staff Engineer',
+      hireDate: '2022-04-18',
+      status: 'active',
+    });
+    const updated = await updateEmployee('emp_new', { title: 'Principal Engineer' });
+
+    const post = fetchMock.mock.calls[0];
+    expect(post?.[0]).toBe('http://localhost:8000/employees');
+    expect(post?.[1]).toMatchObject({ method: 'POST' });
+    expect(JSON.parse(String(post?.[1].body))).toMatchObject({ firstName: 'Avery', hireDate: '2022-04-18' });
+    expect(created.id).toBe('emp_new');
+
+    const put = fetchMock.mock.calls[1];
+    expect(put?.[0]).toBe('http://localhost:8000/employees/emp_new');
+    expect(put?.[1]).toMatchObject({ method: 'PUT' });
+    expect(updated.title).toBe('Principal Engineer');
+  });
+
+  it('deactivates and reactivates with a status patch', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ ...sample, status: 'inactive' }))
+      .mockResolvedValueOnce(jsonResponse(sample));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const inactive = await deactivateEmployee('emp/1');
+    const active = await reactivateEmployee('emp/1');
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/employees/emp%2F1');
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1].body))).toEqual({ status: 'inactive' });
+    expect(fetchMock.mock.calls[0]?.[1].method).toBe('PATCH');
+    expect(inactive.status).toBe('inactive');
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1].body))).toEqual({ status: 'active' });
+    expect(active.status).toBe('active');
+  });
+
+  it('surfaces FastAPI validation errors', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        jsonResponse(
+          { detail: [{ loc: ['body', 'email'], msg: 'value is not a valid email address' }] },
+          422,
+        ),
+      ),
+    );
+
+    await expect(listEmployees()).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 422,
+      message: 'email: value is not a valid email address',
+    } satisfies Partial<ApiError>);
+  });
+
+  it('reports a down API as a network error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+
+    await expect(listEmployees()).rejects.toThrow(/Cannot reach the GrokHR API/);
+  });
+});
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
