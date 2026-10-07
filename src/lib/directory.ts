@@ -1,4 +1,19 @@
-import type { Employee } from '../types/employee.ts';
+import type { Employee, EmployeeStatus } from '../types/employee.ts';
+
+// Badge color and the headcount line both read this map, so a new EmployeeStatus
+// has to name its label and color in one place.
+export const STATUS_PRESENTATION: Record<EmployeeStatus, { label: string; color: string }> = {
+  active: { label: 'Active', color: 'teal' },
+  inactive: { label: 'Inactive', color: 'gray' },
+};
+
+export const STATUS_FILTER_OPTIONS: { label: string; value: 'all' | EmployeeStatus }[] = [
+  { label: 'All', value: 'all' },
+  ...(Object.keys(STATUS_PRESENTATION) as EmployeeStatus[]).map((value) => ({
+    label: STATUS_PRESENTATION[value].label,
+    value,
+  })),
+];
 
 export const DEPARTMENTS = [
   'Engineering',
@@ -59,6 +74,21 @@ export function departmentFilterOptions(employees: Employee[]): string[] {
     .map((employee) => employee.department)
     .filter((department) => department && !known.has(department));
   return [...DEPARTMENTS, ...new Set(extras)];
+}
+
+export function countByStatus(employees: readonly Employee[]): Record<EmployeeStatus, number> {
+  const counts: Record<EmployeeStatus, number> = { active: 0, inactive: 0 };
+  for (const employee of employees) {
+    counts[employee.status] += 1;
+  }
+  return counts;
+}
+
+export function headcountSummary(employees: readonly Employee[]): string {
+  const counts = countByStatus(employees);
+  return (Object.keys(STATUS_PRESENTATION) as EmployeeStatus[])
+    .map((status) => `${counts[status]} ${STATUS_PRESENTATION[status].label.toLowerCase()}`)
+    .join(' · ');
 }
 
 export function fullName(employee: Pick<Employee, 'firstName' | 'lastName'>): string {

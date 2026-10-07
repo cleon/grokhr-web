@@ -20,7 +20,15 @@ import { errorMessage } from '../api/http.ts';
 import { DeactivateModal } from '../components/DeactivateModal.tsx';
 import { EmployeeDrawer } from '../components/EmployeeDrawer.tsx';
 import { EmployeeTable } from '../components/EmployeeTable.tsx';
-import { departmentFilterOptions, filterEmployees, fullName, sortEmployees } from '../lib/directory.ts';
+import {
+  countByStatus,
+  departmentFilterOptions,
+  filterEmployees,
+  fullName,
+  headcountSummary,
+  sortEmployees,
+  STATUS_FILTER_OPTIONS,
+} from '../lib/directory.ts';
 import type { Employee } from '../types/employee.ts';
 
 type EditorState =
@@ -74,7 +82,7 @@ export function EmployeesPage() {
     [employees, query, department, status],
   );
 
-  const activeCount = employees.filter((employee) => employee.status === 'active').length;
+  const counts = countByStatus(employees);
   const departmentCount = new Set(employees.map((employee) => employee.department).filter(Boolean)).size;
 
   function upsert(saved: Employee) {
@@ -115,6 +123,11 @@ export function EmployeesPage() {
           <Text c="dimmed" size="sm" mt={4}>
             Create, update, or deactivate example staff records.
           </Text>
+          {phase === 'ready' ? (
+            <Text size="sm" mt={6} fw={500}>
+              {headcountSummary(employees)}
+            </Text>
+          ) : null}
         </div>
         <Group gap="xs">
           <Button variant="default" leftSection={<IconRefresh size={16} />} onClick={() => void load()}>
@@ -127,8 +140,8 @@ export function EmployeesPage() {
       </Group>
 
       <SimpleGrid cols={{ base: 1, xs: 3 }}>
-        <Stat label="Active" value={phase === 'ready' ? String(activeCount) : '—'} />
-        <Stat label="Inactive" value={phase === 'ready' ? String(employees.length - activeCount) : '—'} />
+        <Stat label="Active" value={phase === 'ready' ? String(counts.active) : '—'} />
+        <Stat label="Inactive" value={phase === 'ready' ? String(counts.inactive) : '—'} />
         <Stat label="Departments" value={phase === 'ready' ? String(departmentCount) : '—'} />
       </SimpleGrid>
 
@@ -157,11 +170,7 @@ export function EmployeesPage() {
             <SegmentedControl
               value={status}
               onChange={(value) => setStatus(value as 'all' | Employee['status'])}
-              data={[
-                { label: 'All', value: 'all' },
-                { label: 'Active', value: 'active' },
-                { label: 'Inactive', value: 'inactive' },
-              ]}
+              data={STATUS_FILTER_OPTIONS}
               aria-label="Filter by status"
             />
           </Group>

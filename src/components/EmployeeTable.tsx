@@ -1,7 +1,7 @@
 import { ActionIcon, Avatar, Badge, Group, Menu, Stack, Table, Text } from '@mantine/core';
 import { IconDots, IconPencil, IconUserCheck, IconUserOff } from '@tabler/icons-react';
 import type { Employee } from '../types/employee.ts';
-import { avatarColor, formatHireDate, fullName, initials } from '../lib/directory.ts';
+import { STATUS_PRESENTATION, avatarColor, formatHireDate, fullName, initials } from '../lib/directory.ts';
 
 export function EmployeeTable({
   employees,
@@ -28,6 +28,7 @@ export function EmployeeTable({
         <Table.Tbody>
           {employees.map((employee) => {
             const name = fullName(employee);
+            const status = STATUS_PRESENTATION[employee.status];
             return (
               <Table.Tr key={employee.id}>
                 <Table.Td>
@@ -46,8 +47,8 @@ export function EmployeeTable({
                       </Stack>
                     </Group>
                     <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-                      <Badge variant="light" color={employee.status === 'active' ? 'teal' : 'gray'}>
-                        {employee.status === 'active' ? 'Active' : 'Inactive'}
+                      <Badge variant="light" color={status.color}>
+                        {status.label}
                       </Badge>
                       <Menu position="bottom-end" withinPortal>
                         <Menu.Target>

@@ -42,6 +42,48 @@ describe('employee directory', () => {
     expect(screen.getByText('Showing 2 of 2')).toBeInTheDocument();
   });
 
+  it('filters the loaded list by status and keeps the headcount', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue(json([avery, riley]));
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByText('1 active · 1 inactive')).toBeInTheDocument();
+    const table = screen.getByRole('table', { name: 'Employees' });
+    expect(badgeColor(table, 'Active')).toBe('teal');
+    expect(badgeColor(table, 'Inactive')).toBe('gray');
+
+    const filter = screen.getByRole('radiogroup', { name: 'Filter by status' });
+    await user.click(within(filter).getByText('Active'));
+
+    expect(within(table).getByText('Avery Chen')).toBeInTheDocument();
+    expect(within(table).queryByText('Riley Moss')).not.toBeInTheDocument();
+    expect(screen.getByText('Showing 1 of 2')).toBeInTheDocument();
+    expect(screen.getByText('1 active · 1 inactive')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await user.click(within(filter).getByText('Inactive'));
+    expect(within(table).queryByText('Avery Chen')).not.toBeInTheDocument();
+    expect(within(table).getByText('Riley Moss')).toBeInTheDocument();
+    expect(screen.getByText('Showing 1 of 2')).toBeInTheDocument();
+  });
+
+  it('shows an empty state when the status filter matches nobody', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json([avery])));
+
+    render(<App />);
+
+    expect(await screen.findByText('1 active · 0 inactive')).toBeInTheDocument();
+    const filter = screen.getByRole('radiogroup', { name: 'Filter by status' });
+    await user.click(within(filter).getByText('Inactive'));
+
+    expect(screen.getByText('No matching employees')).toBeInTheDocument();
+    expect(screen.queryByRole('table', { name: 'Employees' })).not.toBeInTheDocument();
+    expect(screen.getByText('1 active · 0 inactive')).toBeInTheDocument();
+  });
+
   it('shows an error when the API is unreachable', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
 
@@ -130,6 +172,14 @@ describe('employee directory', () => {
     expect(JSON.parse(String(patch?.[1]?.body))).toEqual({ status: 'inactive' });
   });
 });
+
+function badgeColor(table: HTMLElement, label: string): string {
+  const badge = within(table).getByText(label).closest('[style*="--badge-bg"]');
+  const background = badge instanceof HTMLElement ? badge.style.getPropertyValue('--badge-bg') : '';
+  const match = /--mantine-color-([a-z0-9]+)-light/.exec(background);
+  if (!match?.[1]) throw new Error(`No badge color for ${label}`);
+  return match[1];
+}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
