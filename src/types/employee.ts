@@ -14,6 +14,8 @@ export interface Employee {
   email: string;
   department: string;
   title: string;
+  /** Optional work phone. */
+  phone?: string;
   /** ISO calendar date, `YYYY-MM-DD`. */
   hireDate: string;
   status: EmployeeStatus;
@@ -25,6 +27,7 @@ export interface EmployeeCreate {
   email: string;
   department: string;
   title: string;
+  phone?: string;
   hireDate: string;
   status?: EmployeeStatus;
 }
@@ -35,6 +38,7 @@ export interface EmployeeUpdate {
   email?: string;
   department?: string;
   title?: string;
+  phone?: string;
   hireDate?: string;
   status?: EmployeeStatus;
 }

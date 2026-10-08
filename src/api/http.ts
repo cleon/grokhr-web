@@ -66,6 +66,7 @@ export function parseEmployee(value: unknown): Employee {
     email: stringField(record, 'email'),
     department: stringField(record, 'department'),
     title: stringField(record, 'title'),
+    phone: optionalStringField(record, 'phone'),
     hireDate: stringField(record, 'hireDate').slice(0, 10),
     status,
   };

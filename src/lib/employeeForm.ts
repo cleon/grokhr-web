@@ -6,6 +6,7 @@ export interface EmployeeFormValues {
   email: string;
   department: string | null;
   title: string;
+  phone: string;
   hireDate: string;
   status: EmployeeStatus;
 }
@@ -19,6 +20,7 @@ export function emptyEmployeeForm(): EmployeeFormValues {
     email: '',
     department: null,
     title: '',
+    phone: '',
     hireDate: '',
     status: 'active',
   };
@@ -31,6 +33,7 @@ export function employeeToForm(employee: Employee): EmployeeFormValues {
     email: employee.email,
     department: employee.department,
     title: employee.title,
+    phone: employee.phone ?? '',
     hireDate: employee.hireDate,
     status: employee.status,
   };
@@ -58,6 +61,7 @@ export function formToWrite(values: EmployeeFormValues): EmployeeCreate & Employ
     title: values.title.trim(),
     hireDate: values.hireDate,
     status: values.status,
+    ...(values.phone.trim() ? { phone: values.phone.trim() } : {}),
   };
 }
 
