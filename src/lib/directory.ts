@@ -1,16 +1,5 @@
 import type { Employee } from '../types/employee.ts';
 
-export const DEPARTMENTS = [
-  'Engineering',
-  'Product',
-  'Design',
-  'People',
-  'Finance',
-  'Go-to-market',
-  'Operations',
-  'Support',
-] as const;
-
 const AVATAR_COLORS = ['orange', 'teal', 'cyan', 'indigo', 'grape', 'blue'] as const;
 
 export interface DirectoryFilters {
@@ -44,21 +33,6 @@ export function filterEmployees(employees: Employee[], filters: DirectoryFilters
       .toLowerCase();
     return haystack.includes(query);
   });
-}
-
-export function departmentChoices(current?: string | null): string[] {
-  if (current && !DEPARTMENTS.includes(current as (typeof DEPARTMENTS)[number])) {
-    return [...DEPARTMENTS, current];
-  }
-  return [...DEPARTMENTS];
-}
-
-export function departmentFilterOptions(employees: Employee[]): string[] {
-  const known = new Set<string>(DEPARTMENTS);
-  const extras = employees
-    .map((employee) => employee.department)
-    .filter((department) => department && !known.has(department));
-  return [...DEPARTMENTS, ...new Set(extras)];
 }
 
 export function fullName(employee: Pick<Employee, 'firstName' | 'lastName'>): string {

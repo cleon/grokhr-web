@@ -25,17 +25,20 @@ JSON uses camelCase. Reads also accept `first_name`, `last_name`, and `hire_date
 | --- | --- | --- | --- |
 | `GET` | `/employees` | | `Employee[]` (or `{ employees \| items \| data \| results: Employee[] }`) |
 | `GET` | `/employees/{id}` | | `Employee` |
+| `GET` | `/departments` | | `Department[]` (`{ id, name }`) |
 | `POST` | `/employees` | `EmployeeCreate` | `Employee` |
 | `PATCH` | `/employees/{id}` | `EmployeeUpdate` | `Employee` |
 | `PATCH` | `/employees/{id}` | `{ "status": "inactive" }` or `"active"` | `Employee` |
 
 `Employee` fields: `id`, `firstName`, `lastName`, `email`, `department`, `title`, `hireDate` (`YYYY-MM-DD`), `status` (`active` or `inactive`).
 
+`Department` fields: `id`, `name`. The directory filter and the employee form load this list. Create and update still send the department **name** on the employee. If `GET /departments` fails, the filter is hidden and the form accepts a typed department name.
+
 Deactivate is `PATCH` with `{ "status": "inactive" }`. The record stays in the directory. Reactivate sends `{ "status": "active" }`.
 
 Errors follow FastAPI: `{ "detail": "..." }` or `{ "detail": [{ "loc": ["body", "email"], "msg": "..." }] }`.
 
-Search, department, and status filters run in the browser on the list response.
+Search, status, and department filters run in the browser on the employee list. The department filter compares `employee.department` with the selected department's name.
 
 ## Shared types
 
