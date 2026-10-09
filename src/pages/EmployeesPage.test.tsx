@@ -94,7 +94,8 @@ describe('employee directory', () => {
     expect(screen.getByText('Employee added')).toBeInTheDocument();
     const post = fetchMock.mock.calls.find((call) => call[1]?.method === 'POST');
     expect(post?.[0]).toBe('http://localhost:8000/employees');
-    expect(JSON.parse(String(post?.[1]?.body))).toMatchObject({
+    const body = JSON.parse(String(post?.[1]?.body));
+    expect(body).toMatchObject({
       firstName: 'Samir',
       lastName: 'Okonkwo',
       email: 'samir.okonkwo@example.com',
@@ -102,6 +103,65 @@ describe('employee directory', () => {
       title: 'Controller',
       hireDate: '2019-06-24',
       status: 'active',
+    });
+    expect(body).not.toHaveProperty('phone');
+  });
+
+  it('shows phone from the list and an em dash when it is blank', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        json([
+          { ...avery, phone: '555-0142' },
+          { ...riley, phone: null },
+        ]),
+      ),
+    );
+
+    render(<App />);
+
+    const table = await screen.findByRole('table', { name: 'Employees' });
+    expect(within(table).getByRole('columnheader', { name: 'Phone' })).toBeInTheDocument();
+    expect(within(table).getByText('555-0142')).toBeInTheDocument();
+    const rileyRow = within(table).getByText('Riley Moss').closest('tr');
+    expect(rileyRow).not.toBeNull();
+    expect(rileyRow).toHaveTextContent('—');
+  });
+
+  it('clears a work phone with a null patch', async () => {
+    const user = userEvent.setup();
+    const withPhone = { ...avery, phone: '555-0142' };
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'PATCH') return json({ ...withPhone, phone: null });
+      return json([withPhone]);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    expect(await screen.findByText('Avery Chen')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Actions for Avery Chen' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit' }));
+    const dialog = await screen.findByRole('dialog');
+    const phone = within(dialog).getByLabelText('Phone');
+    expect(phone).toHaveValue('555-0142');
+    await user.clear(phone);
+    within(dialog).getByRole('button', { name: 'Save changes' }).closest('form')?.requestSubmit();
+
+    await waitFor(() => {
+      expect(within(screen.getByRole('table', { name: 'Employees' })).getByText('—')).toBeInTheDocument();
+    });
+    const patch = fetchMock.mock.calls.find((call) => call[1]?.method === 'PATCH');
+    expect(patch?.[0]).toBe('http://localhost:8000/employees/emp_1');
+    expect(JSON.parse(String(patch?.[1]?.body))).toMatchObject({
+      firstName: 'Avery',
+      lastName: 'Chen',
+      email: 'avery.chen@example.com',
+      department: 'Engineering',
+      title: 'Staff Engineer',
+      hireDate: '2022-04-18',
+      status: 'active',
+      phone: null,
     });
   });
 

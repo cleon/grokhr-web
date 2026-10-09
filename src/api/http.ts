@@ -66,6 +66,7 @@ export function parseEmployee(value: unknown): Employee {
     email: stringField(record, 'email'),
     department: stringField(record, 'department'),
     title: stringField(record, 'title'),
+    phone: optionalStringField(record, 'phone'),
     hireDate: stringField(record, 'hireDate').slice(0, 10),
     status,
   };
@@ -140,6 +141,13 @@ function stringField(record: Record<string, unknown>, key: string): string {
   if (typeof value === 'string') return value;
   if (typeof value === 'number') return String(value);
   return '';
+}
+
+function optionalStringField(record: Record<string, unknown>, key: string): string | null {
+  const value = readField(record, key);
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed || null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

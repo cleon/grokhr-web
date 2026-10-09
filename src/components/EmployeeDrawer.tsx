@@ -37,7 +37,7 @@ export function EmployeeDrawer({
   const handleSubmit = form.onSubmit(async (values) => {
     setSaving(true);
     try {
-      const payload = formToWrite(values);
+      const payload = formToWrite(values, mode === 'create' || !employee ? 'create' : 'edit');
       const saved =
         mode === 'create' || !employee
           ? await createEmployee(payload)
@@ -75,6 +75,7 @@ export function EmployeeDrawer({
             <TextInput label="Last name" required {...form.getInputProps('lastName')} />
           </SimpleGrid>
           <TextInput label="Email" required type="email" {...form.getInputProps('email')} />
+          <TextInput label="Phone" type="tel" placeholder="Optional" {...form.getInputProps('phone')} />
           <Select
             label="Department"
             required

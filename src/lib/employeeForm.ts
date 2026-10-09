@@ -6,6 +6,7 @@ export interface EmployeeFormValues {
   email: string;
   department: string | null;
   title: string;
+  phone: string;
   hireDate: string;
   status: EmployeeStatus;
 }
@@ -19,6 +20,7 @@ export function emptyEmployeeForm(): EmployeeFormValues {
     email: '',
     department: null,
     title: '',
+    phone: '',
     hireDate: '',
     status: 'active',
   };
@@ -31,6 +33,7 @@ export function employeeToForm(employee: Employee): EmployeeFormValues {
     email: employee.email,
     department: employee.department,
     title: employee.title,
+    phone: employee.phone ?? '',
     hireDate: employee.hireDate,
     status: employee.status,
   };
@@ -49,8 +52,9 @@ export function validateEmployeeForm(values: EmployeeFormValues): Partial<Record
   return errors;
 }
 
-export function formToWrite(values: EmployeeFormValues): EmployeeCreate & EmployeeUpdate {
-  return {
+export function formToWrite(values: EmployeeFormValues, mode: 'create' | 'edit'): EmployeeCreate & EmployeeUpdate {
+  const phone = values.phone.trim();
+  const payload: EmployeeCreate & EmployeeUpdate = {
     firstName: values.firstName.trim(),
     lastName: values.lastName.trim(),
     email: values.email.trim(),
@@ -59,6 +63,10 @@ export function formToWrite(values: EmployeeFormValues): EmployeeCreate & Employ
     hireDate: values.hireDate,
     status: values.status,
   };
+  // A blank edit must send null. Omitting phone would leave the stored number in place.
+  if (phone) payload.phone = phone;
+  else if (mode === 'edit') payload.phone = null;
+  return payload;
 }
 
 function isIsoDate(value: string): boolean {
