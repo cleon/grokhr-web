@@ -29,7 +29,9 @@ JSON uses camelCase. Reads also accept `first_name`, `last_name`, and `hire_date
 | `PATCH` | `/employees/{id}` | `EmployeeUpdate` | `Employee` |
 | `PATCH` | `/employees/{id}` | `{ "status": "inactive" }` or `"active"` | `Employee` |
 
-`Employee` fields: `id`, `firstName`, `lastName`, `email`, `department`, `title`, `hireDate` (`YYYY-MM-DD`), `status` (`active` or `inactive`).
+`Employee` fields: `id`, `firstName`, `lastName`, `email`, `department`, `title`, `phone` (optional; `null` when unset), `hireDate` (`YYYY-MM-DD`), `status` (`active` or `inactive`).
+
+A blank phone is omitted on create. Clearing it on edit sends `{ "phone": null }`.
 
 Deactivate is `PATCH` with `{ "status": "inactive" }`. The record stays in the directory. Reactivate sends `{ "status": "active" }`.
 

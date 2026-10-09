@@ -22,6 +22,7 @@ export function EmployeeTable({
             <Table.Th>Employee</Table.Th>
             <Table.Th visibleFrom="sm">Department</Table.Th>
             <Table.Th visibleFrom="md">Title</Table.Th>
+            <Table.Th visibleFrom="md">Phone</Table.Th>
             <Table.Th visibleFrom="md">Hired</Table.Th>
           </Table.Tr>
         </Table.Thead>
@@ -85,6 +86,9 @@ export function EmployeeTable({
                 </Table.Td>
                 <Table.Td visibleFrom="md">
                   <Text size="sm">{employee.title}</Text>
+                </Table.Td>
+                <Table.Td visibleFrom="md">
+                  <Text size="sm">{employee.phone?.trim() || '—'}</Text>
                 </Table.Td>
                 <Table.Td visibleFrom="md">
                   <Text size="sm">{formatHireDate(employee.hireDate)}</Text>

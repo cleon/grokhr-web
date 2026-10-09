@@ -52,9 +52,28 @@ describe('employee API', () => {
         department: 'People',
         title: 'HR Partner',
         hireDate: '2021-11-02',
+        phone: null,
         status: 'active',
       },
     ]);
+  });
+
+  it('reads a phone and treats blank values as null', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        jsonResponse([
+          { ...sample, phone: ' 555-0100 ' },
+          { ...sample, id: 'emp_2', phone: null },
+          { ...sample, id: 'emp_3' },
+          { ...sample, id: 'emp_4', phone: '   ' },
+        ]),
+      ),
+    );
+
+    const rows = await listEmployees();
+
+    expect(rows.map((row) => row.phone)).toEqual(['555-0100', null, null, null]);
   });
 
   it('creates and updates with camelCase JSON', async () => {

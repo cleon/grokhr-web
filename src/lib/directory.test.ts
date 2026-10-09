@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Employee } from '../types/employee.ts';
 import { filterEmployees, formatHireDate, sortEmployees } from './directory.ts';
-import { validateEmployeeForm, emptyEmployeeForm } from './employeeForm.ts';
+import { employeeToForm, emptyEmployeeForm, formToWrite, validateEmployeeForm } from './employeeForm.ts';
 
 const avery: Employee = {
   id: '1',
@@ -10,6 +10,7 @@ const avery: Employee = {
   email: 'avery.chen@example.com',
   department: 'Engineering',
   title: 'Staff Engineer',
+  phone: '555-0142',
   hireDate: '2022-04-18',
   status: 'active',
 };
@@ -21,6 +22,7 @@ const jordan: Employee = {
   email: 'jordan.hale@example.com',
   department: 'People',
   title: 'HR Partner',
+  phone: null,
   hireDate: '2021-11-02',
   status: 'inactive',
 };
@@ -54,10 +56,42 @@ describe('directory helpers', () => {
         department: 'Engineering',
         title: 'Staff Engineer',
         hireDate: '2022-02-31',
+        phone: 'not-a-phone',
       }),
-    ).toMatchObject({
+    ).toEqual({
       email: 'Enter a valid email',
       hireDate: 'Use a valid date',
     });
+    expect(
+      validateEmployeeForm({
+        ...emptyEmployeeForm(),
+        firstName: 'Avery',
+        lastName: 'Chen',
+        email: 'avery.chen@example.com',
+        department: 'Engineering',
+        title: 'Staff Engineer',
+        hireDate: '2022-04-18',
+        phone: '   ',
+      }),
+    ).toEqual({});
+  });
+
+  it('trims phone and sends null only when an edit clears it', () => {
+    const values = {
+      ...emptyEmployeeForm(),
+      firstName: 'Avery',
+      lastName: 'Chen',
+      email: 'avery.chen@example.com',
+      department: 'Engineering',
+      title: 'Staff Engineer',
+      hireDate: '2022-04-18',
+      phone: '  555-0142  ',
+    };
+    expect(formToWrite(values, 'create')).toMatchObject({ phone: '555-0142' });
+    expect(formToWrite({ ...values, phone: '   ' }, 'create')).not.toHaveProperty('phone');
+    expect(formToWrite({ ...values, phone: '' }, 'edit')).toMatchObject({ phone: null });
+    expect(formToWrite(values, 'edit').phone).toBe('555-0142');
+    expect(employeeToForm({ ...avery, phone: null }).phone).toBe('');
+    expect(employeeToForm(avery).phone).toBe('555-0142');
   });
 });
