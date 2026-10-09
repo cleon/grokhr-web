@@ -57,6 +57,25 @@ describe('employee API', () => {
     ]);
   });
 
+  it('sends q for a search term and omits it when the term is blank', async () => {
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(jsonResponse([])));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await listEmployees('  Chen ');
+    await listEmployees('a&b c');
+    await listEmployees('');
+    await listEmployees('   ');
+    await listEmployees();
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8000/employees?q=Chen');
+    const encoded = new URL(String(fetchMock.mock.calls[1]?.[0]));
+    expect(encoded.pathname).toBe('/employees');
+    expect(encoded.searchParams.get('q')).toBe('a&b c');
+    expect(fetchMock.mock.calls[2]?.[0]).toBe('http://localhost:8000/employees');
+    expect(fetchMock.mock.calls[3]?.[0]).toBe('http://localhost:8000/employees');
+    expect(fetchMock.mock.calls[4]?.[0]).toBe('http://localhost:8000/employees');
+  });
+
   it('creates and updates with camelCase JSON', async () => {
     const fetchMock = vi
       .fn()

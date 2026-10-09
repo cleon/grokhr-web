@@ -26,11 +26,11 @@ const jordan: Employee = {
 };
 
 describe('directory helpers', () => {
-  it('filters by query, department, and status', () => {
+  it('filters by department and status', () => {
     const rows = [avery, jordan];
-    expect(filterEmployees(rows, { query: 'avery.chen', department: null, status: 'all' })).toEqual([avery]);
-    expect(filterEmployees(rows, { query: '', department: 'People', status: 'all' })).toEqual([jordan]);
-    expect(filterEmployees(rows, { query: '', department: null, status: 'active' })).toEqual([avery]);
+    expect(filterEmployees(rows, { department: 'People', status: 'all' })).toEqual([jordan]);
+    expect(filterEmployees(rows, { department: null, status: 'active' })).toEqual([avery]);
+    expect(filterEmployees(rows, { department: null, status: 'all' })).toEqual(rows);
   });
 
   it('sorts by last name without shifting the hire date across timezones', () => {

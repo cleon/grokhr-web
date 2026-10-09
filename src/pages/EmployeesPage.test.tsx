@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App.tsx';
 
 const avery = {
@@ -25,8 +25,12 @@ const riley = {
   status: 'inactive',
 };
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
+  window.history.replaceState(null, '', '/');
 });
 
 describe('employee directory', () => {
@@ -130,6 +134,187 @@ describe('employee directory', () => {
     expect(JSON.parse(String(patch?.[1]?.body))).toEqual({ status: 'inactive' });
   });
 });
+
+describe('server search', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('debounces requests by 300ms and sends the latest term', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(json([avery, riley]));
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await flush();
+    expect(employeeUrls(fetchMock)).toEqual(['http://localhost:8000/employees']);
+
+    const input = screen.getByRole('textbox', { name: 'Search employees' });
+    fireEvent.change(input, { target: { value: 'm' } });
+    await advance(SEARCH_DEBOUNCE_MS - 1);
+    fireEvent.change(input, { target: { value: 'moss' } });
+    await advance(SEARCH_DEBOUNCE_MS - 1);
+
+    expect(employeeUrls(fetchMock)).toEqual(['http://localhost:8000/employees']);
+    expect(screen.queryByRole('status', { name: 'Searching' })).not.toBeInTheDocument();
+
+    await advance(1);
+    expect(employeeUrls(fetchMock).map(queryOf)).toEqual([null, 'moss']);
+  });
+
+  it('requests q and renders the returned rows in the headcount', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const term = queryOf(String(input));
+      if (term === 'nomatch') return json([riley]);
+      return json([avery, riley]);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await flush();
+    expect(screen.getByText('Avery Chen')).toBeInTheDocument();
+    expect(statValue('Active')).toBe('1');
+    expect(statValue('Inactive')).toBe('1');
+    expect(statValue('Departments')).toBe('2');
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search employees' }), {
+      target: { value: 'nomatch' },
+    });
+    await advance(SEARCH_DEBOUNCE_MS);
+
+    expect(queryOf(String(fetchMock.mock.calls.at(-1)?.[0]))).toBe('nomatch');
+    expect(screen.getByText('Riley Moss')).toBeInTheDocument();
+    expect(screen.queryByText('Avery Chen')).not.toBeInTheDocument();
+    expect(statValue('Active')).toBe('0');
+    expect(statValue('Inactive')).toBe('1');
+    expect(statValue('Departments')).toBe('1');
+    expect(screen.getByText('Showing 1 of 1')).toBeInTheDocument();
+  });
+
+  it('ignores a stale search response', async () => {
+    const chen = deferred();
+    const moss = deferred();
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const term = queryOf(String(input));
+      if (term === 'chen') return chen.promise;
+      if (term === 'moss') return moss.promise;
+      return Promise.resolve(json([avery, riley]));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await flush();
+    expect(screen.getByText('Avery Chen')).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Searching' })).not.toBeInTheDocument();
+
+    const input = screen.getByRole('textbox', { name: 'Search employees' });
+    fireEvent.change(input, { target: { value: 'chen' } });
+    await advance(SEARCH_DEBOUNCE_MS);
+    expect(screen.getByRole('status', { name: 'Searching' })).toBeInTheDocument();
+    expect(screen.getByText('Avery Chen')).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: 'moss' } });
+    await advance(SEARCH_DEBOUNCE_MS);
+    expect(queryOf(String(fetchMock.mock.calls.at(-1)?.[0]))).toBe('moss');
+
+    await act(async () => {
+      moss.resolve(json([riley]));
+    });
+    await flush();
+    expect(screen.getByText('Riley Moss')).toBeInTheDocument();
+    expect(screen.queryByText('Avery Chen')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Searching' })).not.toBeInTheDocument();
+    expect(statValue('Active')).toBe('0');
+    expect(statValue('Inactive')).toBe('1');
+
+    await act(async () => {
+      chen.reject(new Error('late'));
+    });
+    await flush();
+    expect(screen.queryByRole('alert', { name: /Directory unavailable/ })).not.toBeInTheDocument();
+    expect(screen.getByText('Riley Moss')).toBeInTheDocument();
+    expect(screen.queryByText('Avery Chen')).not.toBeInTheDocument();
+    expect(screen.getByText('Showing 1 of 1')).toBeInTheDocument();
+  });
+
+  it('syncs q in the URL and restores it on load', async () => {
+    window.history.replaceState(null, '', '/?q=chen');
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const term = queryOf(String(input));
+      if (term === 'chen') return json([avery]);
+      if (term === 'riley moss') return json([riley]);
+      return json([avery, riley]);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await flush();
+
+    const input = screen.getByRole('textbox', { name: 'Search employees' });
+    expect(input).toHaveValue('chen');
+    expect(queryOf(String(fetchMock.mock.calls[0]?.[0]))).toBe('chen');
+    expect(screen.getByText('Avery Chen')).toBeInTheDocument();
+    expect(new URLSearchParams(window.location.search).get('q')).toBe('chen');
+
+    fireEvent.change(input, { target: { value: 'riley moss' } });
+    expect(new URLSearchParams(window.location.search).get('q')).toBe('riley moss');
+    expect(fetchMock.mock.calls.map((call) => queryOf(String(call[0])))).toEqual(['chen']);
+
+    await advance(SEARCH_DEBOUNCE_MS);
+    expect(fetchMock.mock.calls.map((call) => queryOf(String(call[0])))).toEqual(['chen', 'riley moss']);
+    expect(screen.getByText('Riley Moss')).toBeInTheDocument();
+    expect(screen.queryByText('Avery Chen')).not.toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: '' } });
+    expect(new URLSearchParams(window.location.search).has('q')).toBe(false);
+    await advance(SEARCH_DEBOUNCE_MS - 1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await advance(1);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(String(fetchMock.mock.calls[2]?.[0])).toBe('http://localhost:8000/employees');
+    expect(screen.getByText('Avery Chen')).toBeInTheDocument();
+    expect(screen.getByText('Riley Moss')).toBeInTheDocument();
+    expect(screen.getByText('Showing 2 of 2')).toBeInTheDocument();
+  });
+});
+
+function employeeUrls(fetchMock: ReturnType<typeof vi.fn>): string[] {
+  return fetchMock.mock.calls.map((call) => String(call[0])).filter((url) => new URL(url).pathname === '/employees');
+}
+
+function queryOf(url: string): string | null {
+  return new URL(url).searchParams.get('q');
+}
+
+function statValue(label: string): string {
+  const labelNode = screen.getAllByText(label).find((node) => {
+    const value = node.nextElementSibling?.textContent?.trim() ?? '';
+    return /^[0-9]+$|^—$/.test(value);
+  });
+  const value = labelNode?.nextElementSibling?.textContent?.trim();
+  if (!value) throw new Error(`No stat value for ${label}`);
+  return value;
+}
+
+async function advance(ms: number) {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms);
+  });
+}
+
+async function flush() {
+  await advance(0);
+}
+
+function deferred() {
+  let resolve: (value: Response) => void = () => undefined;
+  let reject: (reason?: unknown) => void = () => undefined;
+  const promise = new Promise<Response>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

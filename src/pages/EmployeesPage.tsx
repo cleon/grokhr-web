@@ -2,6 +2,7 @@ import {
   Alert,
   Button,
   Group,
+  Loader,
   Paper,
   SegmentedControl,
   Select,
@@ -14,7 +15,7 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertCircle, IconPlus, IconRefresh, IconSearch } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { listEmployees, reactivateEmployee } from '../api/employees.ts';
 import { errorMessage } from '../api/http.ts';
 import { DeactivateModal } from '../components/DeactivateModal.tsx';
@@ -28,15 +29,37 @@ type EditorState =
   | { opened: true; mode: 'create' }
   | { opened: true; mode: 'edit'; employee: Employee };
 
+const SEARCH_DEBOUNCE_MS = 300;
+
+function readSearchQuery(): string {
+  return new URLSearchParams(window.location.search).get('q')?.trim() ?? '';
+}
+
+function syncSearchParam(term: string): void {
+  const params = new URLSearchParams(window.location.search);
+  if (term) params.set('q', term);
+  else params.delete('q');
+  const search = params.toString();
+  const next = `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash}`;
+  const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (next === current) return;
+  window.history.replaceState(window.history.state, '', next);
+}
+
 export function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(readSearchQuery);
+  const [appliedQuery, setAppliedQuery] = useState(readSearchQuery);
+  const [searching, setSearching] = useState(true);
   const [department, setDepartment] = useState<string | null>(null);
   const [status, setStatus] = useState<'all' | Employee['status']>('all');
   const [editor, setEditor] = useState<EditorState>({ opened: false });
   const [pendingDeactivate, setPendingDeactivate] = useState<Employee | null>(null);
+  // A slower response from an older search must not replace a newer result set.
+  const requestSeq = useRef(0);
+  const startedSearch = useRef(false);
 
   const applyDirectory = useCallback((rows: Employee[]) => {
     setEmployees(sortEmployees(rows));
@@ -44,35 +67,50 @@ export function EmployeesPage() {
     setLoadError(null);
   }, []);
 
-  const load = useCallback(async () => {
-    try {
-      applyDirectory(await listEmployees());
-    } catch (error) {
-      setLoadError(errorMessage(error));
-      setPhase('error');
-    }
+  const load = useCallback((term: string) => {
+    const seq = ++requestSeq.current;
+    setSearching(true);
+    void listEmployees(term)
+      .then((rows) => {
+        if (seq !== requestSeq.current) return;
+        setAppliedQuery(term);
+        applyDirectory(rows);
+      })
+      .catch((error: unknown) => {
+        if (seq !== requestSeq.current) return;
+        setLoadError(errorMessage(error));
+        setPhase('error');
+      })
+      .finally(() => {
+        if (seq === requestSeq.current) setSearching(false);
+      });
   }, [applyDirectory]);
 
   useEffect(() => {
-    let cancelled = false;
-    listEmployees()
-      .then((rows) => {
-        if (!cancelled) applyDirectory(rows);
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setLoadError(errorMessage(error));
-        setPhase('error');
-      });
+    const term = query.trim();
+    // The first request matches the URL immediately. Later edits wait out the debounce.
+    const delay = startedSearch.current ? SEARCH_DEBOUNCE_MS : 0;
+    const timer = window.setTimeout(() => {
+      startedSearch.current = true;
+      syncSearchParam(term);
+      load(term);
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [query, load]);
+
+  useEffect(() => {
     return () => {
-      cancelled = true;
+      // Drop a response that arrives after the page is gone.
+      requestSeq.current += 1;
     };
-  }, [applyDirectory]);
+  }, []);
 
   const visible = useMemo(
-    () => filterEmployees(employees, { query, department, status }),
-    [employees, query, department, status],
+    () => filterEmployees(employees, { department, status }),
+    [employees, department, status],
   );
+
+  const directoryEmpty = employees.length === 0 && appliedQuery.length === 0 && !department && status === 'all';
 
   const activeCount = employees.filter((employee) => employee.status === 'active').length;
   const departmentCount = new Set(employees.map((employee) => employee.department).filter(Boolean)).size;
@@ -117,7 +155,7 @@ export function EmployeesPage() {
           </Text>
         </div>
         <Group gap="xs">
-          <Button variant="default" leftSection={<IconRefresh size={16} />} onClick={() => void load()}>
+          <Button variant="default" leftSection={<IconRefresh size={16} />} onClick={() => void load(query.trim())}>
             Refresh
           </Button>
           <Button leftSection={<IconPlus size={16} />} onClick={() => setEditor({ opened: true, mode: 'create' })}>
@@ -139,8 +177,19 @@ export function EmployeesPage() {
               label="Search"
               placeholder="Name, email, or title"
               leftSection={<IconSearch size={16} />}
+              rightSection={
+                searching ? (
+                  <span role="status" aria-live="polite" aria-label="Searching">
+                    <Loader size="xs" />
+                  </span>
+                ) : null
+              }
               value={query}
-              onChange={(event) => setQuery(event.currentTarget.value)}
+              onChange={(event) => {
+                const next = event.currentTarget.value;
+                setQuery(next);
+                syncSearchParam(next.trim());
+              }}
               aria-label="Search employees"
               style={{ flex: '1 1 220px' }}
             />
@@ -176,13 +225,13 @@ export function EmployeesPage() {
 
           {phase === 'ready' && visible.length === 0 ? (
             <Stack align="center" gap="xs" py="xl">
-              <Text fw={500}>{employees.length === 0 ? 'No employees yet' : 'No matching employees'}</Text>
+              <Text fw={500}>{directoryEmpty ? 'No employees yet' : 'No matching employees'}</Text>
               <Text size="sm" c="dimmed" ta="center" maw={420}>
-                {employees.length === 0
+                {directoryEmpty
                   ? 'Add the first example record. Nothing here is a real person.'
                   : 'Adjust search or filters to see more of the directory.'}
               </Text>
-              {employees.length === 0 ? (
+              {directoryEmpty ? (
                 <Button mt="xs" onClick={() => setEditor({ opened: true, mode: 'create' })}>
                   Add employee
                 </Button>
