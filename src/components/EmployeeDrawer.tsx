@@ -5,7 +5,7 @@ import { notifications } from '@mantine/notifications';
 import { useState } from 'react';
 import { createEmployee, updateEmployee } from '../api/employees.ts';
 import { errorMessage } from '../api/http.ts';
-import { departmentChoices, fullName } from '../lib/directory.ts';
+import { fullName } from '../lib/directory.ts';
 import {
   employeeToForm,
   emptyEmployeeForm,
@@ -13,18 +13,22 @@ import {
   validateEmployeeForm,
   type EmployeeFormValues,
 } from '../lib/employeeForm.ts';
-import type { Employee, EmployeeStatus } from '../types/employee.ts';
+import type { Department, Employee, EmployeeStatus } from '../types/employee.ts';
 
 export function EmployeeDrawer({
   opened,
   mode,
   employee,
+  departments,
+  departmentsStatus,
   onClose,
   onSaved,
 }: {
   opened: boolean;
   mode: 'create' | 'edit';
   employee?: Employee;
+  departments: Department[];
+  departmentsStatus: 'loading' | 'ready' | 'error';
   onClose: () => void;
   onSaved: (employee: Employee) => void;
 }) {
@@ -75,14 +79,30 @@ export function EmployeeDrawer({
             <TextInput label="Last name" required {...form.getInputProps('lastName')} />
           </SimpleGrid>
           <TextInput label="Email" required type="email" {...form.getInputProps('email')} />
-          <Select
-            label="Department"
-            required
-            searchable
-            data={departmentChoices(form.values.department)}
-            placeholder="Select a department"
-            {...form.getInputProps('department')}
-          />
+          {departmentsStatus === 'error' ? (
+            <TextInput
+              label="Department"
+              required
+              placeholder="Department name"
+              {...form.getInputProps('department')}
+              value={form.values.department ?? ''}
+            />
+          ) : (
+            <Select
+              label="Department"
+              required
+              searchable
+              allowDeselect={false}
+              disabled={departmentsStatus !== 'ready'}
+              data={
+                departmentsStatus === 'ready' ? departmentSelectData(departments, form.values.department) : []
+              }
+              placeholder={departmentsStatus === 'loading' ? 'Loading departments' : 'Select a department'}
+              {...(departmentsStatus === 'ready'
+                ? form.getInputProps('department')
+                : { value: null })}
+            />
+          )}
           <TextInput label="Title" required placeholder="Staff engineer" {...form.getInputProps('title')} />
           <DateInput
             label="Hire date"
@@ -118,4 +138,19 @@ export function EmployeeDrawer({
       </form>
     </Drawer>
   );
+}
+
+// Option values are department names. Employee create and update persist that name, not the id.
+function departmentSelectData(departments: Department[], current: string | null) {
+  const seen = new Set<string>();
+  const data: { value: string; label: string }[] = [];
+  for (const department of departments) {
+    if (seen.has(department.name)) continue;
+    seen.add(department.name);
+    data.push({ value: department.name, label: department.name });
+  }
+  if (current && !seen.has(current)) {
+    data.push({ value: current, label: current });
+  }
+  return data;
 }

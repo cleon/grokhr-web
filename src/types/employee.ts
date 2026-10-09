@@ -38,3 +38,8 @@ export interface EmployeeUpdate {
   hireDate?: string;
   status?: EmployeeStatus;
 }
+
+export interface Department {
+  id: string;
+  name: string;
+}

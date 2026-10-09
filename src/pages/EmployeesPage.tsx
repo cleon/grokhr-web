@@ -15,13 +15,16 @@ import {
 import { notifications } from '@mantine/notifications';
 import { IconAlertCircle, IconPlus, IconRefresh, IconSearch } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { listDepartments } from '../api/departments.ts';
 import { listEmployees, reactivateEmployee } from '../api/employees.ts';
 import { errorMessage } from '../api/http.ts';
 import { DeactivateModal } from '../components/DeactivateModal.tsx';
 import { EmployeeDrawer } from '../components/EmployeeDrawer.tsx';
 import { EmployeeTable } from '../components/EmployeeTable.tsx';
-import { departmentFilterOptions, filterEmployees, fullName, sortEmployees } from '../lib/directory.ts';
-import type { Employee } from '../types/employee.ts';
+import { filterEmployees, fullName, sortEmployees } from '../lib/directory.ts';
+import type { Department, Employee } from '../types/employee.ts';
+
+const ALL_DEPARTMENTS = '__all_departments__';
 
 type EditorState =
   | { opened: false }
@@ -32,8 +35,10 @@ export function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [departmentsPhase, setDepartmentsPhase] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [departmentId, setDepartmentId] = useState(ALL_DEPARTMENTS);
   const [query, setQuery] = useState('');
-  const [department, setDepartment] = useState<string | null>(null);
   const [status, setStatus] = useState<'all' | Employee['status']>('all');
   const [editor, setEditor] = useState<EditorState>({ opened: false });
   const [pendingDeactivate, setPendingDeactivate] = useState<Employee | null>(null);
@@ -44,34 +49,61 @@ export function EmployeesPage() {
     setLoadError(null);
   }, []);
 
-  const load = useCallback(async () => {
-    try {
-      applyDirectory(await listEmployees());
-    } catch (error) {
-      setLoadError(errorMessage(error));
-      setPhase('error');
-    }
-  }, [applyDirectory]);
+  const load = useCallback(
+    async (isCancelled?: () => boolean) => {
+      const employeesTask = listEmployees()
+        .then((rows) => {
+          if (isCancelled?.()) return;
+          applyDirectory(rows);
+        })
+        .catch((error: unknown) => {
+          if (isCancelled?.()) return;
+          setLoadError(errorMessage(error));
+          setPhase('error');
+        });
+
+      const departmentsTask = listDepartments()
+        .then((rows) => {
+          if (isCancelled?.()) return;
+          setDepartments(rows);
+          setDepartmentsPhase('ready');
+          setDepartmentId((current) => {
+            const stillListed = rows.some((department) => department.id === current);
+            return current === ALL_DEPARTMENTS || stillListed ? current : ALL_DEPARTMENTS;
+          });
+        })
+        .catch(() => {
+          if (isCancelled?.()) return;
+          setDepartments([]);
+          setDepartmentsPhase('error');
+          setDepartmentId(ALL_DEPARTMENTS);
+        });
+
+      await Promise.all([employeesTask, departmentsTask]);
+    },
+    [applyDirectory],
+  );
 
   useEffect(() => {
     let cancelled = false;
-    listEmployees()
-      .then((rows) => {
-        if (!cancelled) applyDirectory(rows);
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setLoadError(errorMessage(error));
-        setPhase('error');
-      });
+    void load(() => cancelled);
     return () => {
       cancelled = true;
     };
-  }, [applyDirectory]);
+  }, [load]);
+
+  const selectedDepartment =
+    departmentsPhase === 'ready' ? departments.find((department) => department.id === departmentId) : undefined;
 
   const visible = useMemo(
-    () => filterEmployees(employees, { query, department, status }),
-    [employees, query, department, status],
+    () =>
+      filterEmployees(employees, {
+        query,
+        // Employees store the department name, so the filter compares names rather than ids.
+        department: selectedDepartment?.name ?? null,
+        status,
+      }),
+    [employees, query, selectedDepartment, status],
   );
 
   const activeCount = employees.filter((employee) => employee.status === 'active').length;
@@ -144,16 +176,20 @@ export function EmployeesPage() {
               aria-label="Search employees"
               style={{ flex: '1 1 220px' }}
             />
-            <Select
-              label="Department"
-              placeholder="All departments"
-              clearable
-              data={departmentFilterOptions(employees)}
-              value={department}
-              onChange={setDepartment}
-              aria-label="Filter by department"
-              style={{ flex: '1 1 220px' }}
-            />
+            {departmentsPhase === 'ready' ? (
+              <Select
+                label="Department"
+                allowDeselect={false}
+                data={[
+                  { value: ALL_DEPARTMENTS, label: 'All departments' },
+                  ...departments.map((department) => ({ value: department.id, label: department.name })),
+                ]}
+                value={departmentId}
+                onChange={(value) => setDepartmentId(value ?? ALL_DEPARTMENTS)}
+                aria-label="Filter by department"
+                style={{ flex: '1 1 220px' }}
+              />
+            ) : null}
             <SegmentedControl
               value={status}
               onChange={(value) => setStatus(value as 'all' | Employee['status'])}
@@ -213,6 +249,8 @@ export function EmployeesPage() {
           opened
           mode={editor.mode}
           employee={editor.mode === 'edit' ? editor.employee : undefined}
+          departments={departments}
+          departmentsStatus={departmentsPhase}
           onClose={() => setEditor({ opened: false })}
           onSaved={(saved) => {
             upsert(saved);
