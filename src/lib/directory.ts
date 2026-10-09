@@ -14,7 +14,6 @@ export const DEPARTMENTS = [
 const AVATAR_COLORS = ['orange', 'teal', 'cyan', 'indigo', 'grape', 'blue'] as const;
 
 export interface DirectoryFilters {
-  query: string;
   department: string | null;
   status: 'all' | Employee['status'];
 }
@@ -28,21 +27,10 @@ export function sortEmployees(employees: Employee[]): Employee[] {
 }
 
 export function filterEmployees(employees: Employee[], filters: DirectoryFilters): Employee[] {
-  const query = filters.query.trim().toLowerCase();
   return employees.filter((employee) => {
     if (filters.status !== 'all' && employee.status !== filters.status) return false;
     if (filters.department && employee.department !== filters.department) return false;
-    if (!query) return true;
-    const haystack = [
-      employee.firstName,
-      employee.lastName,
-      employee.email,
-      employee.title,
-      employee.department,
-    ]
-      .join(' ')
-      .toLowerCase();
-    return haystack.includes(query);
+    return true;
   });
 }
 

@@ -1,8 +1,10 @@
 import { parseEmployee, parseEmployeeList, requestJson } from './http.ts';
 import type { Employee, EmployeeCreate, EmployeeStatus, EmployeeUpdate } from '../types/employee.ts';
 
-export async function listEmployees(): Promise<Employee[]> {
-  return parseEmployeeList(await requestJson('/employees'));
+export async function listEmployees(query?: string): Promise<Employee[]> {
+  const term = query?.trim() ?? '';
+  const path = term ? `/employees?${new URLSearchParams({ q: term }).toString()}` : '/employees';
+  return parseEmployeeList(await requestJson(path));
 }
 
 export async function createEmployee(input: EmployeeCreate): Promise<Employee> {
